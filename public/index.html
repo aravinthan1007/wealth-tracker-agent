@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wealth Tracker Agent</title>
+  </head>
+  <body>
+    <div style="font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px;">
+      <h1 id="title">Wealth Tracker (Live)</h1>
+      <div id="agents" style="margin-bottom:12px;">
+        <strong>Agents:</strong>
+        <ul>
+          <li>StocksAgent — connected</li>
+          <li>MortgageAgent — connected</li>
+          <li>LoanAgent — connected</li>
+          <li>SavingsAgent — connected</li>
+          <li>NetWorthAgent — connected</li>
+        </ul>
+      </div>
+      <div style="padding:12px;border:1px solid #eee;border-radius:8px;max-width:720px;">
+        <h2>Net Worth</h2>
+        <div id="networth" style="font-size:28px;font-weight:700">Loading…</div>
+        <div id="last" style="font-size:12px;color:#666;margin-top:8px">Connecting to live feed…</div>
+      </div>
+    </div>
+
+    <script>
+      const nf = new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'})
+      function setNetWorth(v){
+        const el = document.getElementById('networth')
+        el.textContent = v==null ? '—' : nf.format(v)
+      }
+      function setLast(t){
+        const el = document.getElementById('last')
+        el.textContent = t ? 'Last update: ' + new Date(t).toLocaleString() : ''
+      }
+
+      // initial fetch
+      fetch('/api/agents/networth').then(r=>r.json()).then(d=>{ setNetWorth(d.netWorth); setLast(new Date().toISOString()) }).catch(()=>{})
+
+      // SSE
+      try{
+        const es = new EventSource('/api/agents/stream')
+        es.onmessage = (e)=>{
+          try{
+            const p = JSON.parse(e.data)
+            if(p && p.result && typeof p.result.netWorth !== 'undefined'){
+              setNetWorth(p.result.netWorth)
+              setLast(p.timestamp || new Date().toISOString())
+            }
+          }catch(err){ console.warn(err) }
+        }
+        es.onerror = ()=>{ const el=document.getElementById('last'); el.textContent = 'Live feed disconnected' }
+      }catch(e){ console.warn('SSE not supported', e) }
+    </script>
+  </body>
+</html>

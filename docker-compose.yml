@@ -1,0 +1,42 @@
+version: '3.8'
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      - MCP_YAHOO_URL=http://mcp-yahoo:8001
+      - MCP_DUCKDUCKGO_URL=http://mcp-duckduckgo:8002
+      - MCP_FETCH_URL=http://mcp-fetcher:8003
+      - MCP_MEMORY_URL=http://mcp-memory:8004
+    depends_on:
+      - mcp-yahoo
+      - mcp-duckduckgo
+      - mcp-fetcher
+      - mcp-memory
+
+  mcp-yahoo:
+    build:
+      context: ./backend/mcp-mock/yahoo
+    ports:
+      - '8001:8001'
+
+  mcp-duckduckgo:
+    build:
+      context: ./backend/mcp-mock/duckduckgo
+    ports:
+      - '8002:8002'
+
+  mcp-fetcher:
+    build:
+      context: ./backend/mcp-mock/fetcher
+    ports:
+      - '8003:8003'
+
+  mcp-memory:
+    build:
+      context: ./backend/mcp-mock/memory
+    ports:
+      - '8004:8004'
