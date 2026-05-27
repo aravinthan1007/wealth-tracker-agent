@@ -1,71 +1,175 @@
 // Shared design tokens and helpers used across all pages
 
 export const C = {
-  bg: '#020617', surface: '#0a0f1a', card: '#0f172a', card2: '#1e293b',
-  border: '#1e293b', border2: '#334155', text: '#f8fafc', muted: '#94a3b8',
-  subtle: '#64748b', green: '#22c55e', greenBg: 'rgba(34,197,94,0.08)',
-  greenBorder: 'rgba(34,197,94,0.2)', red: '#ef4444', redBg: 'rgba(239,68,68,0.08)',
-  blue: '#0ea5e9', blueBg: 'rgba(14,165,233,0.08)', amber: '#f59e0b',
-  amberBg: 'rgba(245,158,11,0.08)', purple: '#a855f7', purpleBg: 'rgba(168,85,247,0.08)'
+  bg: '#060b17',
+  surface: '#0b1120',
+  card: '#0d1528',
+  card2: '#111d35',
+  border: '#1a2540',
+  border2: '#223058',
+  text: '#e8edf5',
+  muted: '#8898b8',
+  subtle: '#546080',
+  green: '#10d87c',
+  green2: '#0ea86a',
+  greenBg: 'rgba(16,216,124,0.08)',
+  greenBorder: 'rgba(16,216,124,0.2)',
+  red: '#f05060',
+  redBg: 'rgba(240,80,96,0.08)',
+  blue: '#3d8ef0',
+  blueBg: 'rgba(61,142,240,0.08)',
+  amber: '#f5a623',
+  amberBg: 'rgba(245,166,35,0.08)',
+  purple: '#8b5cf6',
+  purpleBg: 'rgba(139,92,246,0.08)',
 }
 
-export const mono = { fontFamily: "'Fira Code', monospace" }
-export const sans = { fontFamily: "'Fira Sans', system-ui, sans-serif" }
+export const mono = { fontFamily: "'JetBrains Mono','Fira Code',monospace" }
+export const sans = { fontFamily: "'Inter',system-ui,sans-serif" }
 
-export const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
+export const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })
 export const fmtN = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
+export const fmtK = (n) => {
+  if (!n && n !== 0) return '—'
+  if (Math.abs(n) >= 1e12) return `$${(n / 1e12).toFixed(2)}T`
+  if (Math.abs(n) >= 1e9) return `$${(n / 1e9).toFixed(2)}B`
+  if (Math.abs(n) >= 1e6) return `$${(n / 1e6).toFixed(2)}M`
+  return fmt.format(n)
+}
 
 export function PageHeader({ title, subtitle, actions }) {
   return (
-    <div style={{ padding: '24px 28px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+    <div style={{
+      padding: '22px 28px 18px',
+      borderBottom: `1px solid ${C.border}`,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      flexWrap: 'wrap', gap: 12,
+      background: `linear-gradient(135deg, rgba(16,216,124,0.02) 0%, transparent 60%)`,
+    }}>
       <div>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.text }}>{title}</h1>
-        {subtitle && <p style={{ margin: '4px 0 0', fontSize: 13, color: C.muted }}>{subtitle}</p>}
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: C.text, letterSpacing: '-0.02em' }}>{title}</h1>
+        {subtitle && <p style={{ margin: '3px 0 0', fontSize: 13, color: C.muted }}>{subtitle}</p>}
       </div>
-      {actions && <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{actions}</div>}
+      {actions && <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>{actions}</div>}
     </div>
   )
 }
 
-export function Card({ children, style }) {
+export function Card({ children, style, hover }) {
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, ...style }}>
+    <div
+      className={hover ? 'card-hover' : undefined}
+      style={{
+        background: C.card,
+        border: `1px solid ${C.border}`,
+        borderRadius: 14,
+        transition: 'all 0.2s ease',
+        ...style,
+      }}
+    >
       {children}
     </div>
   )
 }
 
 export function Btn({ children, onClick, variant = 'primary', size = 'md', style, disabled }) {
-  const base = {
-    display: 'inline-flex', alignItems: 'center', gap: 6, border: 'none',
-    borderRadius: 8, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-    fontWeight: 500, transition: 'all 0.15s', opacity: disabled ? 0.5 : 1
+  const sizes = {
+    sm: { padding: '5px 12px', fontSize: 12, borderRadius: 7 },
+    md: { padding: '8px 16px', fontSize: 13, borderRadius: 9 },
+    lg: { padding: '11px 22px', fontSize: 14, borderRadius: 10 },
   }
-  const sizes = { sm: { padding: '6px 12px', fontSize: 12 }, md: { padding: '8px 16px', fontSize: 13 }, lg: { padding: '10px 20px', fontSize: 14 } }
   const variants = {
-    primary: { background: C.green, color: '#000' },
-    secondary: { background: C.card2, color: C.muted, border: `1px solid ${C.border2}` },
-    danger: { background: C.redBg, color: C.red, border: `1px solid rgba(239,68,68,0.3)` },
-    ghost: { background: 'transparent', color: C.muted }
+    primary: {
+      background: `linear-gradient(135deg, ${C.green} 0%, ${C.green2} 100%)`,
+      color: '#03180d',
+      fontWeight: 600,
+      boxShadow: '0 2px 12px rgba(16,216,124,0.25)',
+      border: 'none',
+    },
+    secondary: {
+      background: C.card2,
+      color: C.muted,
+      border: `1px solid ${C.border2}`,
+      fontWeight: 500,
+    },
+    danger: {
+      background: C.redBg,
+      color: C.red,
+      border: `1px solid rgba(240,80,96,0.3)`,
+      fontWeight: 500,
+    },
+    ghost: {
+      background: 'transparent',
+      color: C.muted,
+      border: '1px solid transparent',
+      fontWeight: 500,
+    },
   }
-  return <button onClick={onClick} disabled={disabled} style={{ ...base, ...sizes[size], ...variants[variant], ...style }}>{children}</button>
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 7,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        fontFamily: "'Inter',sans-serif",
+        transition: 'all 0.15s ease',
+        opacity: disabled ? 0.45 : 1,
+        whiteSpace: 'nowrap',
+        letterSpacing: '-0.01em',
+        ...sizes[size],
+        ...variants[variant],
+        ...style,
+      }}
+    >
+      {children}
+    </button>
+  )
 }
 
 export function Badge({ children, color = 'green' }) {
-  const map = { green: { bg: C.greenBg, color: C.green, border: C.greenBorder }, red: { bg: C.redBg, color: C.red, border: 'rgba(239,68,68,0.2)' }, amber: { bg: C.amberBg, color: C.amber, border: 'rgba(245,158,11,0.2)' }, blue: { bg: C.blueBg, color: C.blue, border: 'rgba(14,165,233,0.2)' } }
+  const map = {
+    green: { bg: C.greenBg, color: C.green, border: C.greenBorder },
+    red: { bg: C.redBg, color: C.red, border: 'rgba(240,80,96,0.25)' },
+    amber: { bg: C.amberBg, color: C.amber, border: 'rgba(245,166,35,0.25)' },
+    blue: { bg: C.blueBg, color: C.blue, border: 'rgba(61,142,240,0.25)' },
+    purple: { bg: C.purpleBg, color: C.purple, border: 'rgba(139,92,246,0.25)' },
+  }
   const t = map[color] || map.green
-  return <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: t.bg, color: t.color, border: `1px solid ${t.border}`, ...mono }}>{children}</span>
+  return (
+    <span style={{
+      fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 99,
+      background: t.bg, color: t.color, border: `1px solid ${t.border}`,
+      ...mono, letterSpacing: '0.02em',
+    }}>
+      {children}
+    </span>
+  )
 }
 
 export function Input({ label, ...props }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-      {label && <label style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>{label}</label>}
-      <input {...props} style={{
-        background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 8,
-        padding: '8px 12px', color: C.text, fontSize: 13, fontFamily: 'inherit',
-        outline: 'none', ...props.style
-      }} />
+      {label && (
+        <label style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {label}
+        </label>
+      )}
+      <input
+        {...props}
+        style={{
+          background: C.card2,
+          border: `1px solid ${C.border2}`,
+          borderRadius: 9,
+          padding: '9px 13px',
+          color: C.text,
+          fontSize: 13,
+          fontFamily: "'Inter',sans-serif",
+          outline: 'none',
+          transition: 'border-color 0.15s, box-shadow 0.15s',
+          ...props.style,
+        }}
+      />
     </div>
   )
 }
@@ -73,11 +177,26 @@ export function Input({ label, ...props }) {
 export function Select({ label, children, ...props }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-      {label && <label style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>{label}</label>}
-      <select {...props} style={{
-        background: C.card2, border: `1px solid ${C.border2}`, borderRadius: 8,
-        padding: '8px 12px', color: C.text, fontSize: 13, fontFamily: 'inherit', outline: 'none', ...props.style
-      }}>
+      {label && (
+        <label style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {label}
+        </label>
+      )}
+      <select
+        {...props}
+        style={{
+          background: C.card2,
+          border: `1px solid ${C.border2}`,
+          borderRadius: 9,
+          padding: '9px 13px',
+          color: C.text,
+          fontSize: 13,
+          fontFamily: "'Inter',sans-serif",
+          outline: 'none',
+          cursor: 'pointer',
+          ...props.style,
+        }}
+      >
         {children}
       </select>
     </div>
@@ -87,11 +206,46 @@ export function Select({ label, children, ...props }) {
 export function Modal({ open, onClose, title, children }) {
   if (!open) return null
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }} onClick={onClose}>
-      <div style={{ background: C.card, border: `1px solid ${C.border2}`, borderRadius: 16, padding: 28, minWidth: 380, maxWidth: 520, width: '100%', maxHeight: '90vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{title}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', fontSize: 20 }}>×</button>
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(6,11,23,0.85)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 9999, padding: 20,
+        animation: 'fadeIn 0.15s ease',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: C.card,
+          border: `1px solid ${C.border2}`,
+          borderRadius: 18,
+          padding: 28,
+          minWidth: 400,
+          maxWidth: 540,
+          width: '100%',
+          maxHeight: '90vh',
+          overflow: 'auto',
+          boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+          animation: 'slideIn 0.2s ease',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text, letterSpacing: '-0.02em' }}>{title}</h3>
+          <button
+            onClick={onClose}
+            style={{
+              background: C.card2, border: `1px solid ${C.border}`,
+              borderRadius: 8, color: C.muted, cursor: 'pointer',
+              width: 30, height: 30, fontSize: 16, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            ×
+          </button>
         </div>
         {children}
       </div>
@@ -99,23 +253,96 @@ export function Modal({ open, onClose, title, children }) {
   )
 }
 
-export function StatCard({ label, value, sub, color = C.green, icon: Icon }) {
+export function StatCard({ label, value, sub, color, icon: Icon, trend }) {
+  const col = color || C.green
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '18px 20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        {Icon && <Icon size={15} color={C.muted} />}
-        <span style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>{label}</span>
+    <div
+      className="card-hover"
+      style={{
+        background: C.card,
+        border: `1px solid ${C.border}`,
+        borderRadius: 14,
+        padding: '20px 22px',
+        position: 'relative',
+        overflow: 'hidden',
+        transition: 'all 0.2s ease',
+        cursor: 'default',
+      }}
+    >
+      {/* Subtle top accent */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+        background: `linear-gradient(90deg, ${col} 0%, transparent 70%)`,
+        opacity: 0.6,
+      }} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          {Icon && (
+            <div style={{
+              width: 28, height: 28, borderRadius: 7,
+              background: `${col}14`,
+              border: `1px solid ${col}22`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Icon size={14} color={col} />
+            </div>
+          )}
+          <span style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
+        </div>
+        {trend !== undefined && (
+          <Badge color={trend >= 0 ? 'green' : 'red'}>{trend >= 0 ? '+' : ''}{trend.toFixed(1)}%</Badge>
+        )}
       </div>
-      <div style={{ fontSize: 24, fontWeight: 700, color, ...mono, marginBottom: 4 }}>{value}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, color: col, ...mono, letterSpacing: '-0.03em', marginBottom: 5, animation: 'countUp 0.4s ease' }}>
+        {value}
+      </div>
       {sub && <div style={{ fontSize: 12, color: C.subtle }}>{sub}</div>}
     </div>
   )
 }
 
 export function Spinner() {
-  return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, color: C.muted, fontSize: 13 }}>Loading…</div>
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, gap: 8, color: C.muted, fontSize: 13 }}>
+      <div style={{ width: 16, height: 16, border: `2px solid ${C.border2}`, borderTopColor: C.green, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+      Loading…
+    </div>
+  )
 }
 
-export function EmptyState({ message }) {
-  return <div style={{ textAlign: 'center', padding: '40px 20px', color: C.subtle, fontSize: 13 }}>{message}</div>
+export function EmptyState({ message, icon }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '48px 24px', color: C.subtle, fontSize: 13 }}>
+      {icon && <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.4 }}>{icon}</div>}
+      {message}
+    </div>
+  )
 }
+
+export function SectionHeader({ title, subtitle, right }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `1px solid ${C.border}` }}>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{title}</div>
+        {subtitle && <div style={{ fontSize: 11, color: C.subtle, marginTop: 1 }}>{subtitle}</div>}
+      </div>
+      {right}
+    </div>
+  )
+}
+
+export function ProgressBar({ value, max, color }) {
+  const pct = max ? Math.min((value / max) * 100, 100) : 0
+  const col = color || (pct > 80 ? C.red : pct > 60 ? C.amber : C.green)
+  return (
+    <div style={{ height: 4, background: C.border, borderRadius: 99, overflow: 'hidden' }}>
+      <div style={{
+        width: `${pct}%`, height: '100%', borderRadius: 99,
+        background: `linear-gradient(90deg, ${col} 0%, ${col}bb 100%)`,
+        transition: 'width 0.6s ease',
+        boxShadow: `0 0 8px ${col}60`,
+      }} />
+    </div>
+  )
+}
+

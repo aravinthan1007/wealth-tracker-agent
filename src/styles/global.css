@@ -1,18 +1,23 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #020617;
-  --surface: #0f172a;
-  --card: #0f172a;
-  --border: #1e293b;
-  --text: #f8fafc;
-  --muted: #94a3b8;
-  --subtle: #64748b;
-  --green: #22c55e;
-  --red: #ef4444;
-  --blue: #0ea5e9;
-  --font-sans: 'Fira Sans', system-ui, sans-serif;
-  --font-mono: 'Fira Code', monospace;
+  --bg: #060b17;
+  --surface: #0b1120;
+  --card: #0d1528;
+  --card2: #111d35;
+  --border: #1a2540;
+  --border2: #223058;
+  --text: #e8edf5;
+  --muted: #8898b8;
+  --subtle: #546080;
+  --green: #10d87c;
+  --green2: #0ea86a;
+  --red: #f05060;
+  --blue: #3d8ef0;
+  --amber: #f5a623;
+  --purple: #8b5cf6;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 body {
@@ -21,22 +26,75 @@ body {
   color: var(--text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv02','cv03','cv04','cv11';
+  letter-spacing: -0.01em;
 }
 
 #root { min-height: 100vh; }
 
 /* Recharts dark overrides */
+.recharts-wrapper { font-family: var(--font-mono) !important; }
 .recharts-cartesian-grid-horizontal line,
-.recharts-cartesian-grid-vertical line { stroke: #1e293b; }
-.recharts-legend-item-text { color: #94a3b8 !important; }
-.recharts-text { fill: #64748b; }
+.recharts-cartesian-grid-vertical line { stroke: #1a2540; }
+.recharts-legend-item-text { color: #8898b8 !important; font-size: 11px !important; }
+.recharts-text, .recharts-label { fill: #546080 !important; font-size: 11px !important; }
+.recharts-tooltip-wrapper { outline: none; }
+.recharts-default-tooltip {
+  background: #0d1528 !important;
+  border: 1px solid #1a2540 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 12px !important;
+}
+.recharts-tooltip-label { color: #8898b8 !important; }
+.recharts-tooltip-item { color: #10d87c !important; }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #1a2540; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #223058; }
 
-@keyframes spin { to { transform: rotate(360deg) } }
+/* Smooth transitions */
+a, button { transition: all 0.15s ease; }
+
+/* Number animation */
+@keyframes countUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Card hover glow */
+.card-hover:hover {
+  border-color: #223058 !important;
+  box-shadow: 0 0 0 1px rgba(61,142,240,0.08), 0 8px 32px rgba(0,0,0,0.3) !important;
+  transform: translateY(-1px);
+}
+
+/* Active NavLink */
+.nav-active {
+  background: linear-gradient(135deg, rgba(16,216,124,0.12) 0%, rgba(16,216,124,0.04) 100%) !important;
+  border: 1px solid rgba(16,216,124,0.2) !important;
+  color: #10d87c !important;
+}
+.nav-active svg { color: #10d87c !important; }
+
+/* Table styles */
+table { border-collapse: collapse; width: 100%; }
+tbody tr:hover { background: rgba(255,255,255,0.02); }
+td, th { padding: 10px 14px; font-size: 13px; }
+th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+td { border-bottom: 1px solid rgba(26,37,64,0.5); }
+
+/* Input focus */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: rgba(16,216,124,0.4) !important;
+  box-shadow: 0 0 0 3px rgba(16,216,124,0.08) !important;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }

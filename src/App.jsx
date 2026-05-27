@@ -22,43 +22,77 @@ export default function App() {
   const [collapsed, setCollapsed] = React.useState(false)
   return (
     <BrowserRouter>
-      <div style={{ display:'flex', minHeight:'100vh', background:'#020617', color:'#f8fafc', fontFamily:"'Fira Sans',system-ui,sans-serif" }}>
+      <div style={{ display:'flex', minHeight:'100vh', background:'#060b17', color:'#e8edf5', fontFamily:"'Inter',system-ui,sans-serif" }}>
         {/* Sidebar */}
         <nav style={{
-          width: collapsed ? 60 : 220, flexShrink: 0, background: '#0a0f1a',
-          borderRight: '1px solid #1e293b', display: 'flex', flexDirection: 'column',
-          transition: 'width 0.2s', overflow: 'hidden', position: 'sticky', top: 0, height: '100vh'
+          width: collapsed ? 64 : 240, flexShrink: 0,
+          background: 'linear-gradient(180deg, #080e1d 0%, #060b17 100%)',
+          borderRight: '1px solid #1a2540',
+          display: 'flex', flexDirection: 'column',
+          transition: 'width 0.25s cubic-bezier(0.4,0,0.2,1)',
+          overflow: 'hidden', position: 'sticky', top: 0, height: '100vh',
+          boxShadow: '2px 0 20px rgba(0,0,0,0.3)',
         }}>
-          <div style={{ padding: '18px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #1e293b', minHeight: 60 }}>
-            <Wallet size={22} color="#22c55e" style={{ flexShrink: 0 }} />
-            {!collapsed && <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>WealthTracker</span>}
+          {/* Logo */}
+          <div style={{ padding: collapsed ? '18px 0' : '18px 16px', display: 'flex', alignItems: 'center', gap: 11, borderBottom: '1px solid #1a2540', minHeight: 64, justifyContent: collapsed ? 'center' : 'flex-start' }}>
+            <div style={{ width: 32, height: 32, borderRadius: 9, background: 'linear-gradient(135deg, #10d87c 0%, #0ea86a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 12px rgba(16,216,124,0.35)' }}>
+              <Wallet size={17} color="#03180d" />
+            </div>
+            {!collapsed && (
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 14, letterSpacing: '-0.03em', color: '#e8edf5' }}>WealthTrack</div>
+                <div style={{ fontSize: 10, color: '#10d87c', fontWeight: 600, letterSpacing: '0.08em' }}>AGENT</div>
+              </div>
+            )}
           </div>
-          <div style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+
+          {/* Nav label */}
+          {!collapsed && (
+            <div style={{ padding: '14px 16px 6px', fontSize: 10, fontWeight: 700, color: '#546080', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              Navigation
+            </div>
+          )}
+
+          {/* Nav links */}
+          <div style={{ flex: 1, padding: collapsed ? '10px 8px' : '4px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
             {NAV.map(({ path, label, icon: Icon }) => (
               <NavLink key={path} to={path} style={({ isActive }) => ({
-                display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px',
-                borderRadius: 8, textDecoration: 'none', fontSize: 13, fontWeight: 500,
-                color: isActive ? '#22c55e' : '#94a3b8',
-                background: isActive ? 'rgba(34,197,94,0.08)' : 'transparent',
-                transition: 'all 0.15s', whiteSpace: 'nowrap'
+                display: 'flex', alignItems: 'center', gap: 11,
+                padding: collapsed ? '10px 0' : '9px 12px',
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                borderRadius: 10, textDecoration: 'none', fontSize: 13, fontWeight: 500,
+                color: isActive ? '#10d87c' : '#8898b8',
+                background: isActive ? 'linear-gradient(135deg, rgba(16,216,124,0.12) 0%, rgba(16,216,124,0.04) 100%)' : 'transparent',
+                border: isActive ? '1px solid rgba(16,216,124,0.2)' : '1px solid transparent',
+                transition: 'all 0.15s ease', whiteSpace: 'nowrap',
+                position: 'relative',
               })}>
                 <Icon size={17} style={{ flexShrink: 0 }} />
-                {!collapsed && label}
+                {!collapsed && <span style={{ fontSize: 13 }}>{label}</span>}
               </NavLink>
             ))}
           </div>
-          <div style={{ padding: '12px 8px', borderTop: '1px solid #1e293b' }}>
+
+          {/* Footer */}
+          <div style={{ padding: collapsed ? '10px 8px' : '10px 10px 16px', borderTop: '1px solid #1a2540' }}>
+            {!collapsed && (
+              <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(16,216,124,0.05)', border: '1px solid rgba(16,216,124,0.1)', marginBottom: 8 }}>
+                <div style={{ fontSize: 11, color: '#10d87c', fontWeight: 600, marginBottom: 2 }}>● LIVE</div>
+                <div style={{ fontSize: 11, color: '#546080' }}>All agents active</div>
+              </div>
+            )}
             <button onClick={() => setCollapsed(c => !c)} style={{
               display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
-              gap: 8, width: '100%', padding: '8px 10px', border: 'none',
-              background: 'transparent', cursor: 'pointer', color: '#64748b', borderRadius: 6, fontSize: 12
+              gap: 8, width: '100%', padding: '8px 12px', border: '1px solid #1a2540',
+              background: '#0d1528', cursor: 'pointer', color: '#546080', borderRadius: 9, fontSize: 12,
+              transition: 'all 0.15s',
             }}>
-              {collapsed ? <Menu size={17} /> : <><X size={17} /><span>Collapse</span></>}
+              {collapsed ? <Menu size={16} /> : <><X size={16} /><span>Collapse</span></>}
             </button>
           </div>
         </nav>
 
-        <div style={{ flex: 1, overflow: 'auto' }}>
+        <div style={{ flex: 1, overflow: 'auto', minWidth: 0 }}>
           <Routes>
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<Overview />} />
