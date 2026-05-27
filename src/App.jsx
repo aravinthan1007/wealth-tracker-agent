@@ -1,17 +1,22 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import { LayoutDashboard, TrendingUp, CreditCard, Receipt, Upload, Calendar, Wallet, Menu, X } from 'lucide-react'
+import { LayoutDashboard, TrendingUp, CreditCard, Receipt, Upload, Calendar, Wallet, Menu, X, DollarSign, Brain } from 'lucide-react'
 import Overview from './pages/Overview'
 import Portfolio from './pages/Portfolio'
 import CreditCards from './pages/CreditCards'
 import Expenses from './pages/Expenses'
 import Statements from './pages/Statements'
 import CalendarPage from './pages/CalendarPage'
+import Income from './pages/Income'
+import Research from './pages/Research'
+import Onboarding from './components/Onboarding'
 import './styles/global.css'
 
 const NAV = [
   { path: '/overview', label: 'Overview', icon: LayoutDashboard },
   { path: '/portfolio', label: 'Portfolio', icon: TrendingUp },
+  { path: '/income', label: 'Income', icon: DollarSign },
+  { path: '/research', label: 'AI Research', icon: Brain },
   { path: '/credit-cards', label: 'Credit Cards', icon: CreditCard },
   { path: '/expenses', label: 'Expenses', icon: Receipt },
   { path: '/statements', label: 'Statements', icon: Upload },
@@ -20,6 +25,7 @@ const NAV = [
 
 export default function App() {
   const [collapsed, setCollapsed] = React.useState(false)
+  const [onboarded, setOnboarded] = React.useState(() => !!localStorage.getItem('wt_onboarded'))
   return (
     <BrowserRouter>
       <div style={{ display:'flex', minHeight:'100vh', background:'#060b17', color:'#e8edf5', fontFamily:"'Inter',system-ui,sans-serif" }}>
@@ -97,6 +103,8 @@ export default function App() {
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<Overview />} />
             <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/income" element={<Income />} />
+            <Route path="/research" element={<Research />} />
             <Route path="/credit-cards" element={<CreditCards />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/statements" element={<Statements />} />
@@ -104,6 +112,7 @@ export default function App() {
           </Routes>
         </div>
       </div>
+      {!onboarded && <Onboarding onComplete={() => setOnboarded(true)} />}
     </BrowserRouter>
   )
 }
