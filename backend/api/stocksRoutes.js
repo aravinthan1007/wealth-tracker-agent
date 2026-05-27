@@ -5,6 +5,73 @@ const router = express.Router()
 let fetch
 try { fetch = require('node-fetch') } catch(e) { fetch = global.fetch }
 
+const { XMLParser } = require('fast-xml-parser')
+const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' })
+
+const NEWS_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Accept': 'application/rss+xml, text/xml, application/xml, */*',
+  'Accept-Language': 'en-US,en;q=0.9',
+}
+
+// Fetch Google News RSS for a finance query or stock symbol
+async function googleFinanceNews(query, count = 8) {
+  try {
+    const q = encodeURIComponent(query + ' stock finance')
+    const url = `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`
+    const res = await fetch(url, { headers: NEWS_HEADERS, timeout: 10000 })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const xml = await res.text()
+    const parsed = xmlParser.parse(xml)
+    const items = parsed?.rss?.channel?.item || []
+    const arr = Array.isArray(items) ? items : [items]
+    return arr.slice(0, count).map(item => {
+      // Google News encodes source in <source> tag and link in <link>
+      const source = item?.source?.['#text'] || item?.source || ''
+      const pubDate = item?.pubDate ? new Date(item.pubDate).toISOString() : null
+      // Strip HTML from description
+      const raw = item?.description || ''
+      const desc = raw.replace(/<[^>]+>/g, '').trim()
+      return {
+        title: item?.title || '',
+        link: item?.link || '',
+        publisher: source,
+        pubDate,
+        description: desc.slice(0, 200),
+        source: 'google',
+      }
+    }).filter(a => a.title)
+  } catch(e) {
+    return []
+  }
+}
+
+// General finance news (market headlines)
+async function googleMarketNews(count = 10) {
+  try {
+    // Google News finance topic feed
+    const url = `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en`
+    const res = await fetch(url, { headers: NEWS_HEADERS, timeout: 10000 })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const xml = await res.text()
+    const parsed = xmlParser.parse(xml)
+    const items = parsed?.rss?.channel?.item || []
+    const arr = Array.isArray(items) ? items : [items]
+    return arr.slice(0, count).map(item => {
+      const source = item?.source?.['#text'] || item?.source || ''
+      return {
+        title: item?.title || '',
+        link: item?.link || '',
+        publisher: source,
+        pubDate: item?.pubDate ? new Date(item.pubDate).toISOString() : null,
+        source: 'google',
+      }
+    }).filter(a => a.title)
+  } catch(e) {
+    return []
+  }
+}
+
 const YF_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Accept': 'application/json, text/plain, */*',
@@ -144,6 +211,23 @@ router.get('/history', async (req, res) => {
   else if (period === '1y') from = now - 365 * 86400
   const history = await yfHistory(symbol, from, now)
   res.json({ symbol, history })
+})
+
+// GET /api/stocks/googlenews?symbol=AAPL&count=8
+// Fetches financial news from Google News RSS for a specific stock symbol
+router.get('/googlenews', async (req, res) => {
+  const symbol = (req.query.symbol || 'AAPL').toUpperCase()
+  const count = Math.min(parseInt(req.query.count) || 8, 15)
+  const news = await googleFinanceNews(symbol, count)
+  res.json({ symbol, news, source: 'google' })
+})
+
+// GET /api/stocks/marketnews?count=10
+// Fetches general market/finance headlines from Google News
+router.get('/marketnews', async (req, res) => {
+  const count = Math.min(parseInt(req.query.count) || 10, 20)
+  const news = await googleMarketNews(count)
+  res.json({ news, source: 'google' })
 })
 
 module.exports = router
