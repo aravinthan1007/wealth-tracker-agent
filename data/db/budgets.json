@@ -1,0 +1,10 @@
+{
+  "housing": 2500,
+  "food": 700,
+  "utilities": 300,
+  "entertainment": 150,
+  "health": 100,
+  "transport": 200,
+  "insurance": 250,
+  "other": 300
+}

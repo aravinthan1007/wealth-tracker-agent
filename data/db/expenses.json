@@ -1,0 +1,92 @@
+[
+  {
+    "id": "e1",
+    "category": "Rent",
+    "amount": 2200,
+    "date": "2026-05-01",
+    "description": "Monthly rent",
+    "type": "housing",
+    "recurring": true
+  },
+  {
+    "id": "e2",
+    "category": "Groceries",
+    "amount": 380,
+    "date": "2026-05-05",
+    "description": "Whole Foods",
+    "type": "food",
+    "recurring": false
+  },
+  {
+    "id": "e3",
+    "category": "Utilities",
+    "amount": 145,
+    "date": "2026-05-03",
+    "description": "Electric + Water",
+    "type": "utilities",
+    "recurring": true
+  },
+  {
+    "id": "e4",
+    "category": "Netflix",
+    "amount": 22.99,
+    "date": "2026-05-01",
+    "description": "Streaming",
+    "type": "entertainment",
+    "recurring": true
+  },
+  {
+    "id": "e5",
+    "category": "Gym",
+    "amount": 55,
+    "date": "2026-05-01",
+    "description": "LA Fitness",
+    "type": "health",
+    "recurring": true
+  },
+  {
+    "id": "e6",
+    "category": "Gas",
+    "amount": 95,
+    "date": "2026-05-10",
+    "description": "Shell",
+    "type": "transport",
+    "recurring": false
+  },
+  {
+    "id": "e7",
+    "category": "Dining Out",
+    "amount": 210,
+    "date": "2026-05-12",
+    "description": "Restaurants",
+    "type": "food",
+    "recurring": false
+  },
+  {
+    "id": "e8",
+    "category": "Insurance",
+    "amount": 180,
+    "date": "2026-05-01",
+    "description": "Auto + Health",
+    "type": "insurance",
+    "recurring": true
+  },
+  {
+    "id": "e9",
+    "category": "Internet",
+    "amount": 89.99,
+    "date": "2026-05-03",
+    "description": "Xfinity",
+    "type": "utilities",
+    "recurring": true
+  },
+  {
+    "id": "e10",
+    "category": "Coffee",
+    "amount": 68,
+    "date": "2026-05-15",
+    "description": "Starbucks etc",
+    "type": "food",
+    "recurring": false
+  }
+]

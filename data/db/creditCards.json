@@ -1,0 +1,41 @@
+[
+  {
+    "id": "cc1",
+    "name": "Chase Sapphire",
+    "bank": "Chase",
+    "last4": "4242",
+    "limit": 10000,
+    "balance": 2340.5,
+    "minPayment": 35,
+    "dueDate": "2026-06-15",
+    "apr": 22.99,
+    "rewards": "Travel Points",
+    "color": "#0ea5e9"
+  },
+  {
+    "id": "cc2",
+    "name": "Citi Double Cash",
+    "bank": "Citi",
+    "last4": "8888",
+    "limit": 8000,
+    "balance": 980,
+    "minPayment": 25,
+    "dueDate": "2026-06-20",
+    "apr": 19.99,
+    "rewards": "2% Cash Back",
+    "color": "#22c55e"
+  },
+  {
+    "id": "cc3",
+    "name": "Amex Gold",
+    "bank": "American Express",
+    "last4": "1234",
+    "limit": 15000,
+    "balance": 5600,
+    "minPayment": 84,
+    "dueDate": "2026-06-10",
+    "apr": 0,
+    "rewards": "4x Dining",
+    "color": "#f59e0b"
+  }
+]

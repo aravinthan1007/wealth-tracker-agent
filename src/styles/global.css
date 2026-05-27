@@ -3,16 +3,14 @@
 :root {
   --bg: #020617;
   --surface: #0f172a;
-  --card: #1e293b;
-  --border: #334155;
+  --card: #0f172a;
+  --border: #1e293b;
   --text: #f8fafc;
   --muted: #94a3b8;
   --subtle: #64748b;
   --green: #22c55e;
   --red: #ef4444;
   --blue: #0ea5e9;
-  --green-bg: #14532d;
-  --red-bg: #450a0a;
   --font-sans: 'Fira Sans', system-ui, sans-serif;
   --font-mono: 'Fira Code', monospace;
 }
@@ -26,6 +24,19 @@ body {
 }
 
 #root { min-height: 100vh; }
+
+/* Recharts dark overrides */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line { stroke: #1e293b; }
+.recharts-legend-item-text { color: #94a3b8 !important; }
+.recharts-text { fill: #64748b; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+
+@keyframes spin { to { transform: rotate(360deg) } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }

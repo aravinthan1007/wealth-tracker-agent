@@ -12,6 +12,11 @@ app.use('/data', express.static(path.join(__dirname, '..', 'data')))
 
 // agent API
 app.use('/api/agents', require('./api/agentRoutes'))
+app.use('/api/stocks', require('./api/stocksRoutes'))
+app.use('/api/creditcards', require('./api/creditCardRoutes'))
+app.use('/api/expenses', require('./api/expensesRoutes'))
+app.use('/api/upload', require('./api/uploadRoutes'))
+app.use('/api/google', require('./api/googleRoutes'))
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, '0.0.0.0', (err)=>{
