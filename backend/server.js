@@ -66,6 +66,10 @@ app.use('/api/upload', require('./api/uploadRoutes'))
 app.use('/api/google', require('./api/googleRoutes'))
 app.use('/api/perplexity', require('./api/perplexityRoutes'))
 app.use('/api/react-agent', require('./api/reactAgentRoutes'))
+app.use('/api/onboarding', require('./api/onboardingRoutes'))
+
+// ── MongoDB: connect on startup (non-blocking, graceful fallback) ─────────────
+require('./db/mongo').connect()
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, '0.0.0.0', (err)=>{

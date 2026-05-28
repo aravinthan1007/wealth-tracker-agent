@@ -1,6 +1,6 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import { LayoutDashboard, TrendingUp, CreditCard, Receipt, Upload, Calendar, Wallet, Menu, X, DollarSign, Brain, Cpu } from 'lucide-react'
+import { LayoutDashboard, TrendingUp, CreditCard, Receipt, Upload, Calendar, Wallet, Menu, X, DollarSign, Brain, Cpu, Activity } from 'lucide-react'
 import Overview from './pages/Overview'
 import Portfolio from './pages/Portfolio'
 import CreditCards from './pages/CreditCards'
@@ -10,6 +10,7 @@ import CalendarPage from './pages/CalendarPage'
 import Income from './pages/Income'
 import Research from './pages/Research'
 import Agent from './pages/Agent'
+import OnboardingAgent from './pages/OnboardingAgent'
 import Onboarding from './components/Onboarding'
 import './styles/global.css'
 
@@ -23,6 +24,7 @@ const NAV = [
   { path: '/expenses', label: 'Expenses', icon: Receipt },
   { path: '/statements', label: 'Statements', icon: Upload },
   { path: '/calendar', label: 'Calendar', icon: Calendar },
+  { path: '/onboarding', label: 'DT Onboarding', icon: Activity },
 ]
 
 export default function App() {
@@ -112,6 +114,7 @@ export default function App() {
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/statements" element={<Statements />} />
             <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/onboarding" element={<OnboardingAgent />} />
           </Routes>
         </div>
       </div>

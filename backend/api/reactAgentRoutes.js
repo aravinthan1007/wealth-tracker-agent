@@ -18,6 +18,7 @@ const path = require('path')
 const searchProvider = require('./searchProvider')
 const { traceLLMCall, traceToolCall, traceAgentRun } = require('../tracing')
 const { phoenixMcp } = require('../mcp/phoenixMcpClient')
+const { isConnected, AgentMemory } = require('../db/mongo')
 
 let fetch
 try { fetch = require('node-fetch') } catch (e) { fetch = global.fetch }
@@ -285,6 +286,20 @@ const TOOLS = {
     const value = String(args).slice(eqIdx + 1).trim().slice(0, 500)
     if (!key) return { error: 'key cannot be empty' }
 
+    // Try MongoDB first
+    if (isConnected()) {
+      try {
+        await AgentMemory.findOneAndUpdate(
+          { key },
+          { value, agentId: 'financial-agent', updatedAt: new Date() },
+          { upsert: true, new: true }
+        )
+        return { ok: true, key, stored: value, source: 'mongodb' }
+      } catch (e) {
+        console.error('[remember] MongoDB error:', e.message)
+      }
+    }
+
     // Try MCP memory server first
     const memUrl = process.env.MCP_MEMORY_URL || 'http://localhost:8004'
     try {
@@ -313,6 +328,20 @@ const TOOLS = {
    */
   recall: async (args) => {
     const key = String(args || '').trim().replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 80)
+
+    // Try MongoDB first
+    if (isConnected()) {
+      try {
+        if (key === 'all') {
+          const entries = await AgentMemory.find({ agentId: 'financial-agent' }).sort('-updatedAt').limit(50)
+          return { memories: Object.fromEntries(entries.map(e => [e.key, { value: e.value, timestamp: e.updatedAt }])), source: 'mongodb' }
+        }
+        const entry = await AgentMemory.findOne({ key })
+        if (entry) return { key, value: entry.value, timestamp: entry.updatedAt, source: 'mongodb' }
+      } catch (e) {
+        console.error('[recall] MongoDB error:', e.message)
+      }
+    }
 
     // Try MCP memory server first
     const memUrl = process.env.MCP_MEMORY_URL || 'http://localhost:8004'

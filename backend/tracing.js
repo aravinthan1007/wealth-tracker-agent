@@ -9,9 +9,9 @@
  */
 
 const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node')
-const { OTLPTraceExporter }  = require('@opentelemetry/exporter-trace-otlp-http')
-const { SimpleSpanProcessor } = require('@opentelemetry/sdk-trace-base')
-const { Resource }            = require('@opentelemetry/resources')
+const { OTLPTraceExporter }  = require('@opentelemetry/exporter-trace-otlp-proto')
+const { SimpleSpanProcessor, BatchSpanProcessor } = require('@opentelemetry/sdk-trace-base')
+const { resourceFromAttributes } = require('@opentelemetry/resources')
 const { trace, SpanStatusCode, context, ROOT_CONTEXT } = require('@opentelemetry/api')
 
 // OpenInference semantic conventions for AI spans
@@ -36,21 +36,21 @@ let tracer = null
 function initTracing() {
   const endpoint = process.env.PHOENIX_API_KEY
     ? (process.env.PHOENIX_COLLECTOR_ENDPOINT || 'https://app.phoenix.arize.com/v1/traces')
-    : 'http://localhost:6006/v1/traces'
+    : 'http://127.0.0.1:6006/v1/traces'
 
   const headers = {}
   if (process.env.PHOENIX_API_KEY) {
     headers['api_key'] = process.env.PHOENIX_API_KEY
   }
   if (process.env.PHOENIX_PROJECT) {
-    headers['project'] = process.env.PHOENIX_PROJECT
+    headers['x-project-name'] = process.env.PHOENIX_PROJECT
   }
 
-  const exporter = new OTLPTraceExporter({ url: endpoint, headers })
+  const exporter = new OTLPTraceExporter({ url: endpoint, headers, timeoutMillis: 5000 })
   const provider = new NodeTracerProvider({
-    resource: new Resource({ 'service.name': 'wealthtrack-agent' }),
+    resource: resourceFromAttributes({ 'service.name': 'wealthtrack-agent' }),
+    spanProcessors: [new SimpleSpanProcessor(exporter)],
   })
-  provider.addSpanProcessor(new SimpleSpanProcessor(exporter))
   provider.register()
 
   tracer = trace.getTracer('wealthtrack-agent', '1.0.0')
