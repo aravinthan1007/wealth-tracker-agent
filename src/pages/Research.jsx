@@ -2,33 +2,54 @@ import React, { useState, useEffect, useRef } from 'react'
 import {
   Brain, Search, TrendingUp, DollarSign, BarChart2, RefreshCw, Scissors,
   FileText, BookOpen, Send, ExternalLink, Zap, ChevronDown, ChevronUp,
-  AlertTriangle, CheckCircle, Globe,
+  AlertTriangle, CheckCircle, Globe, Terminal, Calculator, CreditCard, User,
 } from 'lucide-react'
 import { C, mono, fmt, PageHeader, Card, Btn, Badge, Input, Spinner, EmptyState } from '../components/ui'
 
-/* ── Skill definitions (Anthropic financial-services wealth-management vertical) ── */
+/* ── Tool icon / color map (for ReAct step display) ── */
+const TOOL_META = {
+  get_networth:     { icon: BarChart2,   color: C.green },
+  get_stock_quotes: { icon: TrendingUp,  color: C.blue },
+  get_expenses:     { icon: DollarSign,  color: '#f59e0b' },
+  get_credit_cards: { icon: CreditCard,  color: '#ef4444' },
+  get_income:       { icon: DollarSign,  color: C.green },
+  get_profile:      { icon: User,        color: '#a78bfa' },
+  search_web:       { icon: Globe,       color: C.blue },
+  calculate:        { icon: Calculator,  color: '#f59e0b' },
+}
+
+/* ── Skill definitions — each has buildQuestion for the ReAct agent ── */
 const SKILLS = [
   {
     id: 'market-research',
     label: 'Market Research',
     icon: Search,
     color: C.blue,
-    desc: 'Live internet research on any stock, ETF, or sector with real-time prices, analyst ratings, and news.',
-    endpoint: '/api/perplexity/market-research',
+    desc: 'ReAct agent gathers live price data, analyst ratings, recent news, and key risks for any stock or sector.',
     fields: [{ key: 'query', label: 'Stock / Sector to research', placeholder: 'e.g. NVDA, AI semiconductor sector, S&P 500 outlook' }],
-    buildBody: f => ({ query: f.query }),
+    buildQuestion: (f) =>
+      `Do comprehensive market research on: ${f.query || 'S&P 500'}. ` +
+      `Use search_web to find: current price and YTD performance, analyst ratings and price targets, ` +
+      `recent news from the last 2 weeks, key financial metrics (P/E, revenue growth, margins), ` +
+      `and top 3 risks. Conclude with a wealth management insight.`,
   },
   {
     id: 'portfolio-rebalance',
     label: 'Portfolio Rebalance',
     icon: RefreshCw,
     color: C.green,
-    desc: 'Analyze portfolio drift vs. target allocation. Get tax-aware trade recommendations.',
-    endpoint: '/api/perplexity/portfolio-rebalance',
+    desc: 'ReAct agent fetches your real holdings, income, and market data to generate tax-aware rebalancing trades.',
     fields: [
       { key: 'riskProfile', label: 'Risk Profile', placeholder: 'conservative / moderate / aggressive', default: 'moderate' },
     ],
-    buildBody: (f, portfolio) => ({ holdings: portfolio, riskProfile: f.riskProfile || 'moderate' }),
+    buildQuestion: (f, portfolio) => {
+      const holdingsStr = portfolio.length ? portfolio.map(h => `${h.symbol} (${h.shares} shares @ $${h.avgCost})`).join(', ') : 'no holdings saved yet'
+      return `Analyze my portfolio for rebalancing. Risk profile: ${f.riskProfile || 'moderate'}. ` +
+        `Holdings: ${holdingsStr}. ` +
+        `Get my net worth and income data. Then: identify allocation drift from target, ` +
+        `recommend specific trades (buy/sell what amount), check tax implications, ` +
+        `and list 5 priority actions for this month.`
+    },
     needsPortfolio: true,
   },
   {
@@ -36,27 +57,39 @@ const SKILLS = [
     label: 'Financial Plan',
     icon: FileText,
     color: '#a78bfa',
-    desc: 'Comprehensive plan: retirement projections, savings rate, debt payoff, tax optimization using your real income/expense data.',
-    endpoint: '/api/perplexity/financial-plan',
+    desc: 'ReAct agent reads your actual income, expenses, and debt to build a complete retirement and savings plan.',
     fields: [
       { key: 'age', label: 'Your Age', placeholder: '30', type: 'number' },
       { key: 'retirementAge', label: 'Target Retirement Age', placeholder: '65', type: 'number' },
-      { key: 'additionalContext', label: 'Additional Context (optional)', placeholder: 'e.g. planning to buy house in 2 years, have 401k at work' },
+      { key: 'additionalContext', label: 'Additional Context (optional)', placeholder: 'e.g. planning to buy house in 2 years' },
     ],
-    buildBody: f => ({ age: parseInt(f.age) || 30, retirementAge: parseInt(f.retirementAge) || 65, additionalContext: f.additionalContext }),
+    buildQuestion: (f) =>
+      `Create a comprehensive financial plan. Age: ${f.age || 30}, target retirement age: ${f.retirementAge || 65}. ` +
+      (f.additionalContext ? `Context: ${f.additionalContext}. ` : '') +
+      `First get my actual income, expenses, credit cards, and net worth. Then: ` +
+      `(1) assess savings rate vs target, (2) project retirement portfolio at 6% and 8% returns, ` +
+      `(3) calculate optimal monthly savings needed, (4) debt payoff strategy, (5) top 5 action items. ` +
+      `Use calculate() for projections. Include specific dollar amounts.`,
   },
   {
     id: 'tax-loss-harvesting',
     label: 'Tax-Loss Harvesting',
     icon: Scissors,
-    color: C.amber,
-    desc: 'Find unrealized losses to harvest, suggest wash-sale-safe replacements, estimate tax savings.',
-    endpoint: '/api/perplexity/tax-loss-harvesting',
+    color: '#f59e0b',
+    desc: 'ReAct agent finds unrealized losses in your portfolio, estimates tax savings, and suggests wash-sale-safe swaps.',
     fields: [
       { key: 'ytdGains', label: 'YTD Realized Gains ($)', placeholder: '5000', type: 'number' },
       { key: 'taxBracket', label: 'Tax Bracket (%)', placeholder: '24', type: 'number' },
     ],
-    buildBody: (f, portfolio) => ({ holdings: portfolio, ytdGains: parseFloat(f.ytdGains) || 0, taxBracket: parseInt(f.taxBracket) || 24 }),
+    buildQuestion: (f, portfolio) => {
+      const holdingsStr = portfolio.length ? portfolio.map(h => `${h.symbol} (${h.shares} shares @ $${h.avgCost} cost basis)`).join(', ') : 'standard diversified portfolio'
+      return `Tax-loss harvesting analysis. YTD realized gains: $${f.ytdGains || 0}. Tax bracket: ${f.taxBracket || 24}%. ` +
+        `Holdings: ${holdingsStr}. ` +
+        `Get current stock quotes for each position. Calculate unrealized gain/loss per position. ` +
+        `Identify positions with losses to harvest. Calculate tax savings on offsetting the gains. ` +
+        `Suggest specific ETF replacements that maintain market exposure without triggering wash sale rules. ` +
+        `Search for any 2026 tax rule changes affecting harvesting strategy.`
+    },
     needsPortfolio: true,
   },
   {
@@ -64,12 +97,19 @@ const SKILLS = [
     label: 'Quarterly Review',
     icon: BookOpen,
     color: '#f472b6',
-    desc: 'Professional quarterly portfolio & financial health review using your live data and real market performance.',
-    endpoint: '/api/perplexity/client-review',
+    desc: 'ReAct agent pulls your real financial data to prepare a professional quarterly review with metrics and recommendations.',
     fields: [
       { key: 'period', label: 'Review Period', placeholder: 'Q2 2026', default: 'Q2 2026' },
     ],
-    buildBody: (f, portfolio) => ({ holdings: portfolio, period: f.period || 'Q2 2026' }),
+    buildQuestion: (f, portfolio) => {
+      const holdingsStr = portfolio.length ? portfolio.map(h => h.symbol).join(', ') : 'no holdings'
+      return `Prepare a professional ${f.period || 'Q2 2026'} quarterly financial review. ` +
+        `Holdings: ${holdingsStr}. ` +
+        `Gather my income, expenses, credit cards, and net worth data. ` +
+        `Then search for market performance this quarter (S&P 500, bonds, key indices). ` +
+        `Produce: (1) financial health score and savings rate, (2) spending breakdown vs budget, ` +
+        `(3) debt reduction progress, (4) market context for the holdings, (5) top 3 recommendations for next quarter.`
+    },
     needsPortfolio: true,
   },
   {
@@ -77,15 +117,21 @@ const SKILLS = [
     label: 'Investment Proposal',
     icon: TrendingUp,
     color: '#38bdf8',
-    desc: 'Get a specific investment proposal with exact ETF allocations, expected returns, and risk analysis.',
-    endpoint: '/api/perplexity/investment-proposal',
+    desc: 'ReAct agent builds a specific ETF portfolio with expected returns, risk analysis, and step-by-step implementation.',
     fields: [
       { key: 'targetAmount', label: 'Amount to Invest ($)', placeholder: '10000', type: 'number' },
       { key: 'goal', label: 'Goal', placeholder: 'long-term growth / income / capital preservation' },
       { key: 'riskProfile', label: 'Risk Profile', placeholder: 'moderate', default: 'moderate' },
       { key: 'timeHorizon', label: 'Time Horizon (years)', placeholder: '10', type: 'number' },
     ],
-    buildBody: f => ({ targetAmount: parseFloat(f.targetAmount) || 10000, goal: f.goal || 'long-term growth', riskProfile: f.riskProfile || 'moderate', timeHorizon: parseInt(f.timeHorizon) || 10 }),
+    buildQuestion: (f) =>
+      `Create a specific investment proposal for $${f.targetAmount || 10000}. ` +
+      `Goal: ${f.goal || 'long-term growth'}. Risk: ${f.riskProfile || 'moderate'}. Horizon: ${f.timeHorizon || 10} years. ` +
+      `Get my financial profile to personalize advice. ` +
+      `Search for 2026 market conditions and top-performing ETFs in this category. ` +
+      `Propose an exact ETF allocation table (ticker, %, amount, expense ratio). ` +
+      `Use calculate() to project value at 6% and 8% annual returns over the time horizon. ` +
+      `Include lump-sum vs DCA recommendation and rebalancing trigger.`,
   },
 ]
 
@@ -118,41 +164,105 @@ function renderInline(text) {
   })
 }
 
+/* ── ReAct Step display (inline) ─────────────────────────────────────────── */
+function ReActStepRow({ step }) {
+  const [open, setOpen] = useState(false)
+  const isAction = step.type === 'action'
+  const meta = isAction ? (TOOL_META[step.tool] || { icon: Terminal, color: C.muted }) : null
+  const ToolIcon = meta?.icon || Terminal
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div
+        onClick={() => isAction && setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: isAction ? 'pointer' : 'default', padding: '5px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.03)' }}
+      >
+        {isAction
+          ? <ToolIcon size={11} color={meta.color} />
+          : <Brain size={11} color={C.subtle} />
+        }
+        <span style={{ fontSize: 11, color: isAction ? meta.color : C.subtle, fontWeight: isAction ? 600 : 400, flex: 1 }}>
+          {isAction ? `${step.tool}(${typeof step.args === 'object' ? JSON.stringify(step.args) : step.args || ''})` : step.thought}
+        </span>
+        {isAction && (open ? <ChevronUp size={10} color={C.subtle} /> : <ChevronDown size={10} color={C.subtle} />)}
+      </div>
+      {isAction && open && step.observation && (
+        <div style={{ marginLeft: 20, padding: '6px 10px', background: '#080e1d', borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 11, color: C.muted, fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: 200, overflowY: 'auto' }}>
+          {typeof step.observation === 'string' ? step.observation : JSON.stringify(step.observation, null, 2)}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SkillCard({ skill, portfolio, apiKey }) {
   const [fields, setFields] = useState(() => {
     const init = {}
     skill.fields.forEach(f => { init[f.key] = f.default || '' })
     return init
   })
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState(null)
+  const [running, setRunning] = useState(false)
+  const [steps, setSteps] = useState([])
+  const [thinking, setThinking] = useState(null)
+  const [answer, setAnswer] = useState(null)
+  const [toolsUsed, setToolsUsed] = useState([])
   const [error, setError] = useState(null)
   const [expanded, setExpanded] = useState(false)
+  const [showChain, setShowChain] = useState(false)
+  const esRef = useRef(null)
   const Icon = skill.icon
 
-  async function run() {
-    setLoading(true)
+  function run() {
+    if (running) return
+    setRunning(true)
+    setSteps([])
+    setAnswer(null)
+    setToolsUsed([])
     setError(null)
-    setResult(null)
+    setThinking('reasoning')
     setExpanded(true)
-    try {
-      const body = skill.buildBody(fields, portfolio)
-      const res = await fetch(skill.endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Request failed')
-      setResult(data)
-    } catch (e) {
-      setError(e.message)
+    setShowChain(true)
+
+    const question = skill.buildQuestion(fields, portfolio)
+    const es = new EventSource(`/api/react-agent/stream?question=${encodeURIComponent(question)}`)
+    esRef.current = es
+
+    es.addEventListener('step', e => {
+      const step = JSON.parse(e.data)
+      setSteps(prev => [...prev, step])
+      setThinking(step.type === 'action' ? step.tool : 'reasoning')
+    })
+
+    es.addEventListener('done', e => {
+      const data = JSON.parse(e.data)
+      setAnswer(data.answer)
+      setToolsUsed(data.toolsUsed || [])
+      setThinking(null)
+      setRunning(false)
+      es.close()
+    })
+
+    es.addEventListener('error', e => {
+      let msg = 'Agent error'
+      try { msg = JSON.parse(e.data)?.error || msg } catch (_) {}
+      setError(msg)
+      setThinking(null)
+      setRunning(false)
+      es.close()
+    })
+
+    es.onerror = () => {
+      setError('Connection lost — is Ollama running at localhost:11434?')
+      setThinking(null)
+      setRunning(false)
+      es.close()
     }
-    setLoading(false)
   }
 
+  useEffect(() => () => esRef.current?.close(), [])
+
   return (
-    <Card style={{ padding: 0, overflow: 'hidden', border: result ? `1px solid ${skill.color}30` : `1px solid ${C.border}` }}>
+    <Card style={{ padding: 0, overflow: 'hidden', border: answer ? `1px solid ${skill.color}30` : `1px solid ${C.border}` }}>
       {/* Header */}
       <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} onClick={() => setExpanded(e => !e)}>
         <div style={{ width: 36, height: 36, borderRadius: 10, background: `${skill.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -163,7 +273,8 @@ function SkillCard({ skill, portfolio, apiKey }) {
           <div style={{ fontSize: 12, color: C.muted }}>{skill.desc}</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {result && <Badge color="green">Done</Badge>}
+          {answer && <Badge color="green">Done</Badge>}
+          {running && <Badge color="blue">Reasoning…</Badge>}
           {skill.needsPortfolio && portfolio.length === 0 && <Badge color="amber">No holdings</Badge>}
           {expanded ? <ChevronUp size={14} color={C.subtle} /> : <ChevronDown size={14} color={C.subtle} />}
         </div>
@@ -173,7 +284,7 @@ function SkillCard({ skill, portfolio, apiKey }) {
         <div style={{ borderTop: `1px solid ${C.border}`, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* Input fields */}
           {skill.fields.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: skill.fields.length > 2 ? 'repeat(2, 1fr)' : 'repeat(' + skill.fields.length + ', 1fr)', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: skill.fields.length > 2 ? 'repeat(2, 1fr)' : `repeat(${skill.fields.length}, 1fr)`, gap: 10 }}>
               {skill.fields.map(f => (
                 <div key={f.key}>
                   <div style={{ fontSize: 11, color: C.subtle, marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{f.label}</div>
@@ -191,22 +302,20 @@ function SkillCard({ skill, portfolio, apiKey }) {
 
           {skill.needsPortfolio && portfolio.length === 0 && (
             <div style={{ padding: '10px 14px', background: 'rgba(245,166,35,0.08)', border: `1px solid rgba(245,166,35,0.2)`, borderRadius: 8, fontSize: 12, color: C.amber }}>
-              ⚠ Add holdings on the Portfolio page for best results. The AI will use example data.
+              ⚠ Add holdings on the Portfolio page for best results. The agent will reason with available data.
             </div>
           )}
 
           <div style={{ display: 'flex', gap: 8 }}>
-            <Btn onClick={run} disabled={loading || !apiKey}>
-              {loading ? <><Spinner size={12} /> Running…</> : <><Zap size={12} /> Run Skill</>}
+            <Btn onClick={run} disabled={running}>
+              {running
+                ? <><Spinner size={12} /> {thinking === 'reasoning' ? 'Thinking…' : `Calling ${thinking}…`}</>
+                : <><Brain size={12} /> Run ReAct Agent</>}
             </Btn>
-            {result && <Btn onClick={() => setResult(null)} variant="secondary" size="sm">Clear</Btn>}
+            {(answer || error) && (
+              <Btn onClick={() => { setAnswer(null); setSteps([]); setError(null) }} variant="secondary" size="sm">Clear</Btn>
+            )}
           </div>
-
-          {!apiKey && (
-            <div style={{ fontSize: 12, color: C.amber, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <AlertTriangle size={12} /> No search provider or LLM configured — see setup instructions above
-            </div>
-          )}
 
           {error && (
             <div style={{ padding: '10px 14px', background: 'rgba(240,80,96,0.08)', border: `1px solid rgba(240,80,96,0.2)`, borderRadius: 8, fontSize: 12, color: '#f05060' }}>
@@ -214,33 +323,46 @@ function SkillCard({ skill, portfolio, apiKey }) {
             </div>
           )}
 
-          {loading && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '20px 0', alignItems: 'center' }}>
-              <Spinner />
-              <div style={{ fontSize: 12, color: C.muted }}>Searching the web for real-time financial data…</div>
+          {/* ReAct chain — shown while running and after */}
+          {steps.length > 0 && (
+            <div>
+              <div
+                onClick={() => setShowChain(o => !o)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', marginBottom: 6 }}
+              >
+                <Terminal size={11} color={C.subtle} />
+                <span style={{ fontSize: 11, color: C.subtle, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                  Agent Reasoning ({steps.length} step{steps.length !== 1 ? 's' : ''})
+                </span>
+                {showChain ? <ChevronUp size={10} color={C.subtle} /> : <ChevronDown size={10} color={C.subtle} />}
+                {toolsUsed.length > 0 && (
+                  <span style={{ marginLeft: 'auto', fontSize: 10, color: C.subtle }}>
+                    Tools: {toolsUsed.join(', ')}
+                  </span>
+                )}
+              </div>
+              {showChain && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '10px', background: '#080e1d', borderRadius: 8, border: `1px solid ${C.border}`, maxHeight: 280, overflowY: 'auto' }}>
+                  {steps.map((step, i) => <ReActStepRow key={i} step={step} />)}
+                  {running && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', color: C.muted, fontSize: 11 }}>
+                      <Spinner size={10} /> {thinking === 'reasoning' ? 'Thinking…' : `Calling ${thinking}…`}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
-          {result && (
+          {/* Final answer */}
+          {answer && (
             <div>
-              {/* Citations */}
-              {result.citations?.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-                  <span style={{ fontSize: 11, color: C.subtle }}>Sources:</span>
-                  {result.citations.slice(0, 5).map((url, i) => (
-                    <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: C.blue, textDecoration: 'none', padding: '2px 8px', background: 'rgba(61,142,240,0.1)', borderRadius: 4 }}>
-                      <Globe size={9} /> {new URL(url).hostname}
-                    </a>
-                  ))}
-                </div>
-              )}
-              {/* Result text */}
               <div style={{ background: '#080e1d', borderRadius: 10, padding: '16px 20px', border: `1px solid ${C.border}`, maxHeight: 600, overflowY: 'auto' }}>
-                <MarkdownText text={result.text} />
+                <MarkdownText text={answer} />
               </div>
               <div style={{ marginTop: 8, fontSize: 11, color: C.subtle, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <CheckCircle size={10} color={C.green} />
-                Search: {result.provider} · LLM: {result.llm} · Not investment advice
+                ReAct agent · Ollama llama3.2 · {steps.length} reasoning steps · Not investment advice
               </div>
             </div>
           )}
@@ -253,35 +375,64 @@ function SkillCard({ skill, portfolio, apiKey }) {
 /* ── Chat Panel ────────────────────────────────────────────────────────────── */
 function ChatPanel({ apiKey }) {
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Hi! I\'m your AI wealth advisor with real-time internet access. Ask me anything — stock analysis, tax questions, portfolio strategy, market outlook, or anything finance-related. I\'ll use your saved income and expense data for personalized answers.' }
+    { role: 'assistant', content: 'Hi! I\'m your AI wealth advisor powered by a ReAct reasoning agent. I reason step-by-step, fetch your real financial data, search the web, and give you grounded answers. Ask me anything — stocks, taxes, retirement, or your personal finances.' }
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [thinkingMsg, setThinkingMsg] = useState('')
   const bottomRef = useRef(null)
+  const esRef = useRef(null)
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, thinkingMsg])
 
-  async function send() {
+  function send() {
     if (!input.trim() || loading) return
-    const userMsg = input.trim()
+    const question = input.trim()
     setInput('')
-    const history = messages.filter(m => m.role !== 'assistant' || messages.indexOf(m) > 0)
-      .map(m => ({ role: m.role, content: m.content }))
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }])
+    setMessages(prev => [...prev, { role: 'user', content: question }])
     setLoading(true)
-    try {
-      const res = await fetch('/api/perplexity/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg, conversationHistory: history }),
-      })
-      const data = await res.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply || data.error, citations: data.citations }])
-    } catch (e) {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Error: ' + e.message }])
+    setThinkingMsg('Reasoning…')
+
+    const es = new EventSource(`/api/react-agent/stream?question=${encodeURIComponent(question)}`)
+    esRef.current = es
+
+    es.addEventListener('step', e => {
+      const step = JSON.parse(e.data)
+      if (step.type === 'action') setThinkingMsg(`Calling ${step.tool}…`)
+      else setThinkingMsg('Thinking…')
+    })
+
+    es.addEventListener('done', e => {
+      const data = JSON.parse(e.data)
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: data.answer,
+        toolsUsed: data.toolsUsed,
+        stepCount: data.steps?.length || 0,
+      }])
+      setThinkingMsg('')
+      setLoading(false)
+      es.close()
+    })
+
+    es.addEventListener('error', e => {
+      let msg = 'Agent error'
+      try { msg = JSON.parse(e.data)?.error || msg } catch (_) {}
+      setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${msg}` }])
+      setThinkingMsg('')
+      setLoading(false)
+      es.close()
+    })
+
+    es.onerror = () => {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Connection lost — is Ollama running at localhost:11434?' }])
+      setThinkingMsg('')
+      setLoading(false)
+      es.close()
     }
-    setLoading(false)
   }
+
+  useEffect(() => () => esRef.current?.close(), [])
 
   return (
     <Card style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 520 }}>
@@ -305,13 +456,9 @@ function ChatPanel({ apiKey }) {
               fontSize: 13, lineHeight: 1.6, color: C.text,
             }}>
               <MarkdownText text={msg.content} />
-              {msg.citations?.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
-                  {msg.citations.slice(0, 3).map((url, j) => (
-                    <a key={j} href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: C.blue, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <ExternalLink size={8} /> {new URL(url).hostname}
-                    </a>
-                  ))}
+              {msg.toolsUsed?.length > 0 && (
+                <div style={{ marginTop: 6, fontSize: 10, color: C.subtle }}>
+                  Tools used: {msg.toolsUsed.join(', ')} · {msg.stepCount} steps
                 </div>
               )}
             </div>
@@ -319,7 +466,7 @@ function ChatPanel({ apiKey }) {
         ))}
         {loading && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: C.muted, fontSize: 12 }}>
-            <Spinner size={14} /> Searching web for real-time data…
+            <Spinner size={14} /> {thinkingMsg}
           </div>
         )}
         <div ref={bottomRef} />
@@ -331,13 +478,13 @@ function ChatPanel({ apiKey }) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
-          placeholder={apiKey ? 'Ask about stocks, taxes, portfolio strategy…' : 'Configure a search provider or start Ollama to enable chat'}
-          disabled={!apiKey || loading}
+          placeholder="Ask about stocks, taxes, portfolio strategy…"
+          disabled={loading}
           style={{ flex: 1, padding: '9px 14px', background: '#0a1424', border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: 13, outline: 'none' }}
         />
         <button onClick={send} disabled={!input.trim() || loading}
-          style={{ width: 38, height: 38, borderRadius: 10, background: apiKey && input.trim() ? C.green : C.card2, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Send size={15} color={apiKey && input.trim() ? '#03180d' : C.subtle} />
+          style={{ width: 38, height: 38, borderRadius: 10, background: input.trim() && !loading ? C.green : C.card2, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Send size={15} color={input.trim() && !loading ? '#03180d' : C.subtle} />
         </button>
       </div>
     </Card>
@@ -369,13 +516,13 @@ export default function Research() {
     <div>
       <PageHeader
         title="AI Research Agent"
-        subtitle={<>6 wealth management skills · Search: Tavily / Exa / Serper / SearXNG · LLM: Ollama llama3.2 (local, free) · Adapted from <a href="https://github.com/anthropics/financial-services" target="_blank" rel="noopener noreferrer" style={{ color: C.blue, textDecoration: 'none' }}>Anthropic financial-services</a></>}
+        subtitle="6 wealth management skills powered by a ReAct reasoning loop · Thought → Action → Observation · Ollama llama3.2 (local, free) · Real financial data tools"
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: apiKey ? 'rgba(16,216,124,0.08)' : 'rgba(245,166,35,0.08)', border: `1px solid ${apiKey ? 'rgba(16,216,124,0.2)' : 'rgba(245,166,35,0.2)'}`, borderRadius: 8 }}>
-              <Globe size={12} color={apiKey ? C.green : C.amber} />
-              <span style={{ fontSize: 12, color: apiKey ? C.green : C.amber, fontWeight: 600 }}>
-                {apiKey ? `Search: ${status?.activeProvider || 'active'} · Ollama: ready` : 'Setup required'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(16,216,124,0.08)', border: `1px solid rgba(16,216,124,0.2)`, borderRadius: 8 }}>
+              <Globe size={12} color={C.green} />
+              <span style={{ fontSize: 12, color: C.green, fontWeight: 600 }}>
+                ReAct Agent · Ollama llama3.2 · 8 tools
               </span>
             </div>
           </div>
@@ -419,7 +566,7 @@ export default function Research() {
         {/* Skills grid — 2 columns */}
         <div>
           <div style={{ fontSize: 11, color: C.subtle, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>
-            Wealth Management Skills — Anthropic FSI Reference Implementation
+            Wealth Management Skills — ReAct Agent (Thought → Action → Observation)
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {SKILLS.map(skill => (

@@ -30,21 +30,42 @@ router.get('/networth', (req,res)=>{
   res.json({ netWorth: totalAssets - totalLiabilities, totalAssets, totalLiabilities })
 })
 
-// Proxy endpoint to fetch stock data via MCP client if available
+// Proxy endpoint to fetch stock data — calls Yahoo Finance v8 directly, falls back to local mock
 router.get('/stocks', async (req,res)=>{
-  const symbol = req.query.symbol
-  if(!symbol) return res.status(400).json({ error: 'symbol required' })
-  // Try MCP Yahoo Finance server via backend mcp client
-  try{
-    const mcp = require('../mcp/mcpClient')
-    const data = await mcp.getStockQuote(symbol)
-    return res.json({ source: 'mcp', data })
-  }catch(e){
-    // fallback to local data
+  const raw = (req.query.symbol || '').replace(/[^A-Za-z.,\-^]/g, '').toUpperCase().slice(0, 50)
+  if (!raw) return res.status(400).json({ error: 'symbol required' })
+  const symbols = raw.split(',').filter(Boolean).slice(0, 10)
+
+  const results = {}
+  for (const symbol of symbols) {
+    try {
+      const r = await fetch(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`,
+        { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; WealthTracker/1.0)' }, signal: AbortSignal.timeout(5000) }
+      )
+      const d = await r.json()
+      const meta = d?.chart?.result?.[0]?.meta
+      if (meta) {
+        results[symbol] = {
+          price:         Math.round(meta.regularMarketPrice * 100) / 100,
+          previousClose: Math.round((meta.chartPreviousClose || meta.regularMarketPrice) * 100) / 100,
+          change:        Math.round((meta.regularMarketPrice - (meta.chartPreviousClose || meta.regularMarketPrice)) * 100) / 100,
+          changePercent: meta.chartPreviousClose
+            ? Math.round((meta.regularMarketPrice / meta.chartPreviousClose - 1) * 10000) / 100
+            : 0,
+          currency: meta.currency,
+          exchange: meta.exchangeName,
+          source: 'yahoo-finance-v8',
+        }
+        continue
+      }
+    } catch (_) {}
+    // Fallback to local mock data
     const stocks = loadJson('mockStocks.json')
-    const item = stocks.find(s=>s.symbol===symbol)
-    return res.json({ source: 'mock', data: item || null })
+    const item = stocks.find(s => s.symbol === symbol)
+    results[symbol] = item ? { ...item, source: 'mock' } : { error: 'not found', source: 'mock' }
   }
+  return res.json(symbols.length === 1 ? { source: results[symbols[0]]?.source, data: results[symbols[0]] } : results)
 })
 
 // Trigger daily run: run orchestrator and store summary to memory (if available)
