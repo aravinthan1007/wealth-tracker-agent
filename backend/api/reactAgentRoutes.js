@@ -16,6 +16,8 @@ const router = express.Router()
 const fs = require('fs')
 const path = require('path')
 const searchProvider = require('./searchProvider')
+const { traceLLMCall, traceToolCall, traceAgentRun } = require('../tracing')
+const { phoenixMcp } = require('../mcp/phoenixMcpClient')
 
 let fetch
 try { fetch = require('node-fetch') } catch (e) { fetch = global.fetch }
@@ -378,6 +380,53 @@ const TOOLS = {
       return { error: e.message, url }
     }
   },
+
+  /**
+   * query_traces(topic)
+   * Queries Arize Phoenix for past agent traces related to a topic.
+   * Uses the Phoenix MCP server (@arizeai/phoenix-mcp) via stdio MCP protocol.
+   * Gives the agent access to its own observability data for self-reflection.
+   * Example: query_traces(stock analysis AAPL)
+   */
+  query_traces: async (args) => {
+    const topic = String(args || '').trim().slice(0, 200)
+    if (!topic) return { error: 'topic required e.g. query_traces(stock analysis AAPL)' }
+
+    try {
+      // Check if Phoenix is available first
+      const available = await phoenixMcp.isAvailable()
+      if (!available) {
+        return {
+          message: 'Arize Phoenix not available — traces will be stored once Phoenix is running',
+          source:  'phoenix-mcp',
+          topic,
+        }
+      }
+
+      // Use Phoenix MCP to list recent spans related to the topic
+      const result = await phoenixMcp.callTool('get-spans', {
+        projectName: process.env.PHOENIX_PROJECT || 'wealthtrack-agent',
+        limit:       5,
+      })
+
+      // Extract relevant text from spans
+      const spans = result?.spans || result?.content || []
+      return {
+        topic,
+        trace_count: Array.isArray(spans) ? spans.length : 0,
+        traces:      spans,
+        source:      'phoenix-mcp',
+        message:     `Found ${Array.isArray(spans) ? spans.length : 0} recent traces for '${topic}'`,
+      }
+    } catch (e) {
+      return {
+        error:   e.message,
+        topic,
+        source:  'phoenix-mcp',
+        message: 'Could not query Phoenix traces — agent is still functional without observability data',
+      }
+    }
+  },
 }
 
 // ── Tool metadata (for /tools endpoint and system prompt) ─────────────────────
@@ -394,6 +443,7 @@ const TOOL_DOCS = [
   { name: 'calculate',        args: 'expr',    desc: 'Safe math e.g. calculate(150000 * 1.07^10) or calculate(5200 / 13400 * 100)' },
   { name: 'remember',         args: 'key=val', desc: 'Persist a fact to agent memory across sessions e.g. remember(user_risk=moderate, prefers ETFs)' },
   { name: 'recall',           args: 'key',     desc: 'Retrieve a stored fact e.g. recall(user_risk). Use recall(all) to list everything stored.' },
+  { name: 'query_traces',     args: 'topic',   desc: 'Query Arize Phoenix for past agent traces — use for self-reflection on prior reasoning about a topic e.g. query_traces(AAPL analysis)' },
 ]
 
 // ── System prompt for ReAct loop ─────────────────────────────────────────────
@@ -450,9 +500,36 @@ function parseStep(text) {
   return { type: 'unknown', thought, raw: clean }
 }
 
-// ── Call Ollama ───────────────────────────────────────────────────────────────
+// ── Call LLM (Gemini primary, Ollama fallback) ────────────────────────────────
 
-async function callLLM(messages) {
+const { GoogleGenerativeAI } = require('@google/generative-ai')
+
+async function callGemini(messages) {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) throw new Error('GEMINI_API_KEY not set')
+
+  const genai = new GoogleGenerativeAI(apiKey)
+  const model = genai.getGenerativeModel({
+    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+    generationConfig: { temperature: 0.15, maxOutputTokens: 700 },
+    systemInstruction: messages.find(m => m.role === 'system')?.content || '',
+  })
+
+  // Convert messages (skip system — already set above)
+  const history = []
+  const nonSystem = messages.filter(m => m.role !== 'system')
+  for (let i = 0; i < nonSystem.length - 1; i++) {
+    const m = nonSystem[i]
+    history.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })
+  }
+
+  const lastMsg = nonSystem[nonSystem.length - 1]
+  const chat = model.startChat({ history })
+  const result = await chat.sendMessage(lastMsg?.content || '')
+  return result.response.text()
+}
+
+async function callOllama(messages) {
   const model = process.env.OLLAMA_MODEL || 'llama3.2'
   const r = await fetch('http://localhost:11434/api/chat', {
     method: 'POST',
@@ -468,6 +545,20 @@ async function callLLM(messages) {
   if (!r.ok) throw new Error(`Ollama HTTP ${r.status}`)
   const d = await r.json()
   return d?.message?.content || d?.response || ''
+}
+
+async function callLLM(messages) {
+  const model = getModelName()
+  if (process.env.GEMINI_API_KEY) {
+    return traceLLMCall(model, messages, () => callGemini(messages))
+  }
+  // Fallback: Ollama for local development without API key
+  return traceLLMCall(model, messages, () => callOllama(messages))
+}
+
+function getModelName() {
+  if (process.env.GEMINI_API_KEY) return process.env.GEMINI_MODEL || 'gemini-2.0-flash'
+  return process.env.OLLAMA_MODEL || 'llama3.2'
 }
 
 // ── Core ReAct loop ───────────────────────────────────────────────────────────
@@ -490,7 +581,7 @@ async function runReActLoop(question, onStep) {
       const result = { step: i + 1, type: 'answer', thought: step.thought, answer: step.answer }
       steps.push(result)
       if (onStep) onStep(result)
-      return { answer: step.answer, steps, toolsUsed, model: process.env.OLLAMA_MODEL || 'llama3.2' }
+      return { answer: step.answer, steps, toolsUsed, model: getModelName() }
     }
 
     if (step.type === 'action') {
@@ -501,7 +592,7 @@ async function runReActLoop(question, onStep) {
         observation = { error: `Unknown tool "${step.tool}". Use: ${Object.keys(TOOLS).join(', ')}` }
       } else {
         try {
-          observation = await toolFn(step.args || undefined)
+          observation = await traceToolCall(step.tool, step.args, () => toolFn(step.args || undefined))
         } catch (e) {
           observation = { error: e.message }
         }
@@ -541,7 +632,7 @@ async function runReActLoop(question, onStep) {
   const result = { step: MAX_STEPS + 1, type: 'answer', thought: final.thought || '', answer }
   steps.push(result)
   if (onStep) onStep(result)
-  return { answer, steps, toolsUsed, model: process.env.OLLAMA_MODEL || 'llama3.2' }
+  return { answer, steps, toolsUsed, model: getModelName() }
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -562,10 +653,10 @@ router.post('/run', async (req, res) => {
   }
 
   try {
-    const result = await runReActLoop(question)
+    const result = await traceAgentRun(question, () => runReActLoop(question))
     res.json(result)
   } catch (e) {
-    res.status(502).json({ error: e.message, hint: 'Is Ollama running? ollama serve' })
+    res.status(502).json({ error: e.message, hint: 'Check GEMINI_API_KEY env var or local Ollama service' })
   }
 })
 
@@ -591,12 +682,12 @@ router.get('/stream', async (req, res) => {
   req.on('close', () => { closed = true })
 
   try {
-    const result = await runReActLoop(question, (step) => {
+    const result = await traceAgentRun(question, () => runReActLoop(question, (step) => {
       if (!closed) send('step', step)
-    })
+    }))
     if (!closed) send('done', { answer: result.answer, toolsUsed: result.toolsUsed, model: result.model })
   } catch (e) {
-    if (!closed) send('error', { error: e.message, hint: 'Is Ollama running? ollama serve' })
+    if (!closed) send('error', { error: e.message, hint: 'Check GEMINI_API_KEY env var or local Ollama service' })
   }
 
   res.end()

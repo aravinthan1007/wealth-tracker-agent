@@ -11,11 +11,31 @@ services:
       - MCP_DUCKDUCKGO_URL=http://mcp-duckduckgo:8002
       - MCP_FETCH_URL=http://mcp-fetcher:8003
       - MCP_MEMORY_URL=http://mcp-memory:8004
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
+      - PHOENIX_HOST=http://phoenix:6006
+      - PHOENIX_PROJECT=wealthtrack-agent
+      - PHOENIX_ENABLED=true
     depends_on:
       - mcp-yahoo
       - mcp-duckduckgo
       - mcp-fetcher
       - mcp-memory
+      - phoenix
+
+  # ── Arize Phoenix — AI observability for the ReAct agent ─────────────────────
+  # Traces every Gemini call and tool invocation.
+  # Access the Phoenix UI at http://localhost:6006
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    ports:
+      - '6006:6006'   # Phoenix UI + REST API
+      - '4317:4317'   # OTLP gRPC (optional)
+    environment:
+      - PHOENIX_WORKING_DIR=/phoenix-data
+      - PHOENIX_PROJECT_NAME=wealthtrack-agent
+    volumes:
+      - phoenix-data:/phoenix-data
 
   mcp-yahoo:
     build:
@@ -40,3 +60,6 @@ services:
       context: ./backend/mcp-mock/memory
     ports:
       - '8004:8004'
+
+volumes:
+  phoenix-data:

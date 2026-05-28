@@ -1,67 +1,150 @@
-# Wealth Tracker Agent
+# WealthTrack Agent
 
-Minimal scaffold for the Wealth Tracker Agent project. Contains a Vite + React frontend and a tiny Express backend that serves sample data and a net worth API.
+> An AI-powered personal finance agent that **reasons** about your wealth — built with Google Gemini, a ReAct reasoning loop, and MCP-connected observability via Arize.
 
-How to run (local):
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-1. Install dependencies
+**Hackathon:** [Google Cloud Rapid Agent Hackathon](https://googlecloudmultiagent.devpost.com/)
+**Track:** Arize — AI Observability
+**Live Demo:** *(link after deployment)*
 
+---
+
+## What It Does
+
+WealthTrack Agent is a full-stack wealth management platform where a **ReAct reasoning agent** (Thought ? Action ? Observation loop) answers complex financial questions by calling real-data tools:
+
+- **"Am I on track to retire in 20 years?"** ? agent reasons through net worth, income, expenses
+- **"Which of my stocks are underperforming?"** ? pulls live Yahoo Finance quotes, compares against holdings
+- **"What is the market saying about my portfolio?"** ? searches the web in real time via DuckDuckGo
+- **"Summarize last months expenses"** ? reads transaction history, categorizes spend
+
+Every reasoning step is **traced and observable** in Arize Phoenix — so you can see *exactly why* the AI gave you that financial answer.
+
+---
+
+## Architecture
+
+```
+Browser (React 18 + Vite)
+    |
+    v
+Express Backend (Node.js)
+    |-- ReAct Agent Loop (Gemini 2.0 Flash)
+    |       Thought -> Action -> Observation (up to 10 steps)
+    |
+    +-- MCP Tool Layer
+            |-- Yahoo Finance MCP  (port 8001) -- live stock quotes
+            |-- DuckDuckGo MCP     (port 8002) -- real-time web search
+            |-- URL Fetcher MCP    (port 8003) -- fetch any URL for context
+            +-- Memory MCP         (port 8004) -- persistent agent memory
+
+Arize Phoenix -- traces every LLM call + tool invocation
+```
+
+---
+
+## Agent Tools (11 total)
+
+| Tool | Source | Description |
+|------|--------|-------------|
+| `get_networth` | Local data | Net worth breakdown: assets, liabilities |
+| `get_stock_quotes` | Yahoo Finance v8 | Live stock prices for portfolio holdings |
+| `get_expenses` | Local data | Monthly expense analysis by category |
+| `get_credit_cards` | Local data | Credit card balances and APRs |
+| `get_income` | Local data | Income streams (salary, dividends, etc.) |
+| `get_profile` | Local data | User financial profile |
+| `search_web` | DuckDuckGo MCP | Real-time market news and research |
+| `fetch_url` | Fetcher MCP | Retrieve content from any financial URL |
+| `calculate` | Built-in | Safe arithmetic evaluation |
+| `remember` | Memory MCP | Persist facts across sessions |
+| `recall` | Memory MCP | Retrieve previously stored facts |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, Vite 5, Recharts |
+| Backend | Express 4 (Node.js, CommonJS) |
+| AI | **Google Gemini 2.0 Flash** (via `@google/generative-ai`) |
+| Agent Pattern | ReAct (Reasoning + Acting loop) |
+| MCP Servers | Docker Compose -- 4 microservices |
+| AI Observability | **Arize Phoenix** -- traces every LLM + tool call |
+| Hosting | Google Cloud Run |
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Node.js 18+
+- Docker + Docker Compose
+- Google Cloud account with Gemini API access
+
+### 1. Clone and install
 ```bash
+git clone https://github.com/aravinthan1007/wealth-tracker-agent.git
+cd wealth-tracker-agent
 npm install
 ```
 
-2. Run dev frontend
-
+### 2. Configure environment
 ```bash
-npm run dev
+cp .env.example .env
+# Edit .env -- add GEMINI_API_KEY
 ```
 
-3. Or start backend server
-
+### 3. Start MCP services
 ```bash
-npm start
+docker compose up -d
 ```
 
-MCP Integration
-----------------
-This scaffold can call free/open-source MCP servers for live data. The backend includes a small MCP client at `backend/mcp/mcpClient.js` and a proxy route `GET /api/agents/stocks?symbol=SYM`.
-
-To use MCP servers you should run the desired MCP server(s) locally (or remote) and set environment variables to their base URLs before starting the backend. Example env vars:
-
-```
-MCP_YAHOO_URL=http://localhost:8001
-MCP_DUCKDUCKGO_URL=http://localhost:8002
-MCP_FETCH_URL=http://localhost:8003
-MCP_MEMORY_URL=http://localhost:8004
-```
-
-See the MCP registry for server implementations: https://github.com/modelcontextprotocol/servers
-
-The backend will try to call the MCP Yahoo server for stock quotes and fall back to sample data if unavailable.
-
-Run MCP servers locally with Docker Compose
------------------------------------------
-You can start the backend plus lightweight mock MCP servers using `docker-compose`:
-
+### 4. Start backend + frontend
 ```bash
-docker-compose up --build
+npm run start     # backend on :3000
+npm run dev       # frontend on :5173
 ```
 
-This will start:
-- Backend: `http://localhost:3000`
-- Mock MCP Yahoo: `http://localhost:8001`
-- Mock MCP DuckDuckGo: `http://localhost:8002`
-- Mock MCP Fetcher: `http://localhost:8003`
-- Mock MCP Memory: `http://localhost:8004`
+Open http://localhost:5173
 
-The backend is configured to use these MCP services when the corresponding `MCP_*` env vars are set (see above).
+---
 
-Google Cloud Deployment (outline)
----------------------------------
-I can prepare a `cloudbuild.yaml` and Docker build steps to push the backend image to Google Container Registry and deploy to Cloud Run or GKE. Typical steps:
+## Project Structure
 
-1. Create `gcloud` service account and enable Container Registry / Cloud Run APIs.
-2. Add `cloudbuild.yaml` with steps to build and push images and deploy.
-3. Update `backend/Dockerfile` (already added) and optionally add Kubernetes manifests for GKE.
+```
+|-- backend/
+|   |-- api/
+|   |   |-- reactAgentRoutes.js   # ReAct loop -- Gemini + 11 tools
+|   |   |-- agentRoutes.js        # REST endpoints for financial data
+|   |   +-- searchProvider.js     # DuckDuckGo/web search
+|   |-- mcp-mock/                 # MCP microservices (yahoo, ddg, memory, fetcher)
+|   +-- server.js                 # Express entry point
+|-- src/
+|   +-- pages/
+|       |-- Research.jsx          # ReAct agent UI (6 skills + chat)
+|       |-- Dashboard.jsx         # Net worth overview
+|       |-- Portfolio.jsx         # Stock holdings
+|       +-- ...                   # 7 more pages
+|-- data/                         # User financial data (JSON)
+|-- docker-compose.yml            # 4 MCP services
++-- .env.example                  # Environment variable template
+```
 
-If you want I can scaffold the `cloudbuild.yaml` and example `gke-deployment.yaml` next.
+---
+
+## Arize Integration
+
+Every call to Gemini and every tool invocation is traced in Arize Phoenix:
+
+1. **Trace the full ReAct chain** -- see Thought -> Action -> Observation for every question
+2. **Evaluate answer quality** -- Arize scores responses for relevance and faithfulness
+3. **Monitor latency** -- P95 response time per tool (Yahoo Finance, web search, etc.)
+4. **Detect failures** -- alert when tools fail or the agent loops without an answer
+
+---
+
+## License
+
+MIT -- see [LICENSE](./LICENSE)
