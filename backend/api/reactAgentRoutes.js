@@ -268,6 +268,116 @@ const TOOLS = {
       return { error: 'Invalid expression: ' + e.message }
     }
   },
+
+  /**
+   * remember(key=value)
+   * Stores a fact in persistent agent memory (MCP memory server or local file).
+   * Use this to save important insights, decisions, or user preferences between sessions.
+   * Example: remember(user_risk_profile=moderate - prefers dividend ETFs)
+   */
+  remember: async (args) => {
+    if (!args) return { error: 'args required e.g. remember(retirement_goal=retire at 60 with $2M)' }
+    const eqIdx = String(args).indexOf('=')
+    if (eqIdx === -1) return { error: 'format: remember(key=value)' }
+    const key   = String(args).slice(0, eqIdx).trim().replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 80)
+    const value = String(args).slice(eqIdx + 1).trim().slice(0, 500)
+    if (!key) return { error: 'key cannot be empty' }
+
+    // Try MCP memory server first
+    const memUrl = process.env.MCP_MEMORY_URL || 'http://localhost:8004'
+    try {
+      const r = await fetch(`${memUrl}/set`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ key, value }),
+        signal:  AbortSignal.timeout(3000),
+      })
+      if (r.ok) return { ok: true, key, stored: value, source: 'mcp-memory' }
+    } catch (_) {}
+
+    // Fallback: local agentMemory.json
+    const memFile = path.join(DATA, 'agentMemory.json')
+    const mem = readJson(memFile) || {}
+    mem[key] = { value, timestamp: new Date().toISOString() }
+    fs.writeFileSync(memFile, JSON.stringify(mem, null, 2))
+    return { ok: true, key, stored: value, source: 'local-memory' }
+  },
+
+  /**
+   * recall(key)
+   * Retrieves a previously stored fact from agent memory.
+   * Example: recall(user_risk_profile)
+   * Use recall(all) to list everything stored.
+   */
+  recall: async (args) => {
+    const key = String(args || '').trim().replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 80)
+
+    // Try MCP memory server first
+    const memUrl = process.env.MCP_MEMORY_URL || 'http://localhost:8004'
+    try {
+      if (key === 'all') {
+        const r = await fetch(`${memUrl}/all`, { signal: AbortSignal.timeout(3000) })
+        if (r.ok) return { memories: await r.json(), source: 'mcp-memory' }
+      } else {
+        const r = await fetch(`${memUrl}/get?key=${encodeURIComponent(key)}`, { signal: AbortSignal.timeout(3000) })
+        if (r.ok) {
+          const d = await r.json()
+          return { key, value: d.value, source: 'mcp-memory' }
+        }
+      }
+    } catch (_) {}
+
+    // Fallback: local agentMemory.json
+    const memFile = path.join(DATA, 'agentMemory.json')
+    const mem = readJson(memFile) || {}
+    if (key === 'all') return { memories: mem, source: 'local-memory' }
+    const entry = mem[key]
+    return entry
+      ? { key, value: entry.value, timestamp: entry.timestamp, source: 'local-memory' }
+      : { key, value: null, message: 'No memory found for this key', source: 'local-memory' }
+  },
+
+  /**
+   * fetch_url(url)
+   * Fetches the content of a specific web page (financial sites, SEC filings, etc).
+   * Routes through MCP fetcher service if running, otherwise fetches directly.
+   * Example: fetch_url(https://finance.yahoo.com/quote/AAPL)
+   */
+  fetch_url: async (args) => {
+    if (!args) return { error: 'url required e.g. fetch_url(https://example.com)' }
+    const url = String(args).trim()
+    if (!/^https?:\/\//i.test(url)) return { error: 'url must start with http:// or https://' }
+    if (url.length > 500) return { error: 'url too long' }
+
+    // Try MCP fetcher service first
+    const fetchUrl = process.env.MCP_FETCH_URL || 'http://localhost:8003'
+    try {
+      const r = await fetch(`${fetchUrl}/fetch`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ url }),
+        signal:  AbortSignal.timeout(8000),
+      })
+      if (r.ok) {
+        const d = await r.json()
+        return { url, content: String(d.content || '').slice(0, 2000), status: d.status, source: 'mcp-fetcher' }
+      }
+    } catch (_) {}
+
+    // Fallback: fetch directly
+    try {
+      const r = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; WealthTracker/1.0)' },
+        signal:  AbortSignal.timeout(8000),
+      })
+      const text = await r.text()
+      // Strip HTML tags for readability
+      const clean = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 2000)
+      return { url, content: clean, status: r.status, source: 'direct-fetch' }
+    } catch (e) {
+      return { error: e.message, url }
+    }
+  },
 }
 
 // ── Tool metadata (for /tools endpoint and system prompt) ─────────────────────
@@ -280,19 +390,27 @@ const TOOL_DOCS = [
   { name: 'get_income',       args: '',        desc: 'Income sources and monthly/annual totals by type' },
   { name: 'get_profile',      args: '',        desc: "User's risk profile, investment goals, retirement age" },
   { name: 'search_web',       args: 'query',   desc: 'Web search for financial news, rates, market data e.g. search_web(S&P 500 YTD 2026)' },
+  { name: 'fetch_url',        args: 'url',     desc: 'Fetch content from a specific web page e.g. fetch_url(https://finance.yahoo.com/quote/AAPL)' },
   { name: 'calculate',        args: 'expr',    desc: 'Safe math e.g. calculate(150000 * 1.07^10) or calculate(5200 / 13400 * 100)' },
+  { name: 'remember',         args: 'key=val', desc: 'Persist a fact to agent memory across sessions e.g. remember(user_risk=moderate, prefers ETFs)' },
+  { name: 'recall',           args: 'key',     desc: 'Retrieve a stored fact e.g. recall(user_risk). Use recall(all) to list everything stored.' },
 ]
 
 // ── System prompt for ReAct loop ─────────────────────────────────────────────
 
 const TOOL_LIST = TOOL_DOCS.map(t => `- ${t.name}(${t.args}) → ${t.desc}`).join('\n')
 
-const SYSTEM_PROMPT = `You are WealthTrack AI, a financial intelligence agent.
-You have access to the user's real financial data through tools.
+const SYSTEM_PROMPT = `You are WealthTrack AI, a financial intelligence agent with persistent memory.
+You have access to the user's real financial data and the web through tools.
 NEVER fabricate numbers. Always call tools to get real data.
 
 Available tools:
 ${TOOL_LIST}
+
+MEMORY RULES:
+- At the START of each session, call recall(all) to check what you know about this user.
+- When you learn something important (risk profile, goals, preferences, key decisions), call remember(key=value) to persist it.
+- Memory persists across all sessions — build a richer user model over time.
 
 FORMAT — follow this EXACTLY, one action per response:
 
@@ -309,7 +427,7 @@ RULES:
 - One Action per step — never multiple
 - Use exact numbers from Observation results, not estimates
 - If a tool errors, try a different approach
-- After 8 tool calls you MUST write Answer:`
+- After 10 tool calls you MUST write Answer:`
 
 // ── Parse one LLM response into structured step ───────────────────────────────
 

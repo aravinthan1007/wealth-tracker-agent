@@ -15,7 +15,10 @@ const TOOL_META = {
   get_income:       { icon: DollarSign,  color: C.green },
   get_profile:      { icon: User,        color: '#a78bfa' },
   search_web:       { icon: Globe,       color: C.blue },
+  fetch_url:        { icon: ExternalLink, color: C.blue },
   calculate:        { icon: Calculator,  color: '#f59e0b' },
+  remember:         { icon: Brain,       color: '#a78bfa' },
+  recall:           { icon: Brain,       color: '#a78bfa' },
 }
 
 /* ── Skill definitions — each has buildQuestion for the ReAct agent ── */
