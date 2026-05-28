@@ -64,6 +64,7 @@ app.use('/api/sheets', require('./api/sheetsRoutes'))
 app.use('/api/upload', require('./api/uploadRoutes'))
 app.use('/api/google', require('./api/googleRoutes'))
 app.use('/api/perplexity', require('./api/perplexityRoutes'))
+app.use('/api/react-agent', require('./api/reactAgentRoutes'))
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, '0.0.0.0', (err)=>{

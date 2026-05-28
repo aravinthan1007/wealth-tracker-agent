@@ -1,0 +1,3 @@
+Scheduler: daily job scheduled
+Server listening on 3000
+Daily run failed request to http://localhost:3000/api/agents/run/daily failed, reason: connect ECONNREFUSED ::1:3000

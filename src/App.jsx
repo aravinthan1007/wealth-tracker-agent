@@ -1,6 +1,6 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import { LayoutDashboard, TrendingUp, CreditCard, Receipt, Upload, Calendar, Wallet, Menu, X, DollarSign, Brain } from 'lucide-react'
+import { LayoutDashboard, TrendingUp, CreditCard, Receipt, Upload, Calendar, Wallet, Menu, X, DollarSign, Brain, Cpu } from 'lucide-react'
 import Overview from './pages/Overview'
 import Portfolio from './pages/Portfolio'
 import CreditCards from './pages/CreditCards'
@@ -9,6 +9,7 @@ import Statements from './pages/Statements'
 import CalendarPage from './pages/CalendarPage'
 import Income from './pages/Income'
 import Research from './pages/Research'
+import Agent from './pages/Agent'
 import Onboarding from './components/Onboarding'
 import './styles/global.css'
 
@@ -16,6 +17,7 @@ const NAV = [
   { path: '/overview', label: 'Overview', icon: LayoutDashboard },
   { path: '/portfolio', label: 'Portfolio', icon: TrendingUp },
   { path: '/income', label: 'Income', icon: DollarSign },
+  { path: '/agent', label: 'ReAct Agent', icon: Cpu },
   { path: '/research', label: 'AI Research', icon: Brain },
   { path: '/credit-cards', label: 'Credit Cards', icon: CreditCard },
   { path: '/expenses', label: 'Expenses', icon: Receipt },
@@ -105,6 +107,7 @@ export default function App() {
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/income" element={<Income />} />
             <Route path="/research" element={<Research />} />
+            <Route path="/agent" element={<Agent />} />
             <Route path="/credit-cards" element={<CreditCards />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/statements" element={<Statements />} />
