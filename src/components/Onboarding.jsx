@@ -22,20 +22,23 @@ export default function Onboarding({ onComplete }) {
   const [holding, setHolding] = useState({ symbol: '', shares: '', avgCost: '' })
   const [saving, setSaving] = useState(false)
   const [skipHolding, setSkipHolding] = useState(false)
+  const [saveError, setSaveError] = useState(null)
 
   async function finish() {
     setSaving(true)
+    setSaveError(null)
     try {
       // Save profile
-      await fetch('/api/income/profile', {
+      const profileRes = await fetch('/api/income/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...profile, onboarded: true, onboardedAt: new Date().toISOString() }),
       })
+      if (!profileRes.ok) throw new Error(`Profile save failed (${profileRes.status})`)
 
       // Save salary as income source if filled
       if (salary.amount && parseFloat(salary.amount) > 0) {
-        await fetch('/api/income', {
+        const incRes = await fetch('/api/income', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -47,6 +50,7 @@ export default function Onboarding({ onComplete }) {
             active: true,
           }),
         })
+        if (!incRes.ok) throw new Error(`Income save failed (${incRes.status})`)
       }
 
       // Save stock holding to localStorage (Portfolio uses localStorage)
@@ -61,11 +65,14 @@ export default function Onboarding({ onComplete }) {
         localStorage.setItem('portfolio', JSON.stringify(updated))
       }
 
-      // Mark onboarded in localStorage
+      // Mark onboarded — only on success
       localStorage.setItem('wt_onboarded', '1')
-    } catch(e) {}
-    setSaving(false)
-    onComplete()
+      setSaving(false)
+      onComplete()
+    } catch(e) {
+      setSaveError(e.message || 'Could not save — is the backend running? (node backend/server.js)')
+      setSaving(false)
+    }
   }
 
   function next() {
@@ -237,12 +244,19 @@ export default function Onboarding({ onComplete }) {
           )}
         </div>
 
+        {/* Error */}
+        {saveError && (
+          <div style={{ margin: '0 28px 12px', padding: '10px 14px', background: 'rgba(240,80,96,0.08)', border: '1px solid rgba(240,80,96,0.25)', borderRadius: 8, fontSize: 12, color: '#f05060' }}>
+            ⚠ {saveError}
+          </div>
+        )}
+
         {/* Footer */}
         <div style={{ padding: '0 28px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: 12, color: C.subtle }}>Step {step + 1} of {STEPS.length}</div>
           <div style={{ display: 'flex', gap: 8 }}>
             {step > 0 && step < 3 && (
-              <Btn onClick={() => setStep(s => s - 1)} variant="secondary">Back</Btn>
+              <Btn onClick={() => { setStep(s => s - 1); setSaveError(null) }} variant="secondary">Back</Btn>
             )}
             <Btn onClick={next} disabled={!canNext() || saving} style={{ minWidth: 120 }}>
               {saving ? 'Saving…' : step === STEPS.length - 1 ? 'Open Dashboard' : <>Next <ChevronRight size={14} /></>}

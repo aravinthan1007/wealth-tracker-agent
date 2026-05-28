@@ -21,8 +21,31 @@ router.get('/', (req, res) => res.json(loadCards()))
 
 // POST add card
 router.post('/', (req, res) => {
+  const b = req.body || {}
+  // Validate required fields
+  const limit = parseFloat(b.limit)
+  const balance = parseFloat(b.balance)
+  const minPayment = parseFloat(b.minPayment)
+  const apr = parseFloat(b.apr)
+  if (!b.name || typeof b.name !== 'string' || b.name.length > 100) {
+    return res.status(400).json({ error: 'Invalid card name' })
+  }
+  if (!isFinite(limit) || limit < 0) return res.status(400).json({ error: 'Invalid limit' })
+  if (!isFinite(balance) || balance < 0) return res.status(400).json({ error: 'Invalid balance' })
   const cards = loadCards()
-  const card = { id: `cc${Date.now()}`, ...req.body }
+  const card = {
+    id: `cc${Date.now()}`,
+    name: b.name.trim().slice(0, 100),
+    bank: typeof b.bank === 'string' ? b.bank.trim().slice(0, 100) : '',
+    last4: typeof b.last4 === 'string' ? b.last4.replace(/\D/g, '').slice(-4) : '',
+    limit: isFinite(limit) ? limit : 0,
+    balance: isFinite(balance) ? balance : 0,
+    minPayment: isFinite(minPayment) ? minPayment : 0,
+    dueDate: typeof b.dueDate === 'string' ? b.dueDate.slice(0, 10) : null,
+    apr: isFinite(apr) && apr >= 0 ? apr : 0,
+    rewards: typeof b.rewards === 'string' ? b.rewards.slice(0, 200) : '',
+    color: typeof b.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(b.color) ? b.color : '#6366f1',
+  }
   cards.push(card)
   saveCards(cards)
   res.status(201).json(card)
@@ -30,10 +53,26 @@ router.post('/', (req, res) => {
 
 // PUT update card
 router.put('/:id', (req, res) => {
+  if (!/^cc\d+$/.test(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
   let cards = loadCards()
   const idx = cards.findIndex(c => c.id === req.params.id)
   if (idx === -1) return res.status(404).json({ error: 'Not found' })
-  cards[idx] = { ...cards[idx], ...req.body }
+  const b = req.body || {}
+  const allowed = ['name', 'bank', 'last4', 'limit', 'balance', 'minPayment', 'dueDate', 'apr', 'rewards', 'color']
+  const patch = {}
+  for (const k of allowed) {
+    if (!(k in b)) continue
+    if (['limit','balance','minPayment','apr'].includes(k)) {
+      const n = parseFloat(b[k])
+      if (!isFinite(n) || n < 0) return res.status(400).json({ error: `Invalid ${k}` })
+      patch[k] = n
+    } else if (k === 'color') {
+      if (typeof b[k] === 'string' && /^#[0-9a-fA-F]{6}$/.test(b[k])) patch[k] = b[k]
+    } else {
+      patch[k] = typeof b[k] === 'string' ? b[k].slice(0, 200) : b[k]
+    }
+  }
+  cards[idx] = { ...cards[idx], ...patch }
   saveCards(cards)
   res.json(cards[idx])
 })

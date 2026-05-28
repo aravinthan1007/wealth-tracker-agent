@@ -52,10 +52,25 @@ router.get('/summary', (req, res) => {
   res.json({ month, total, byCategory, budgets, expenses: exp })
 })
 
+const VALID_TYPES = new Set(['housing','food','utilities','entertainment','health','transport','insurance','other'])
+
 // POST add expense
 router.post('/', (req, res) => {
+  const b = req.body || {}
+  const amount = parseFloat(b.amount)
+  if (!isFinite(amount) || amount < 0 || amount > 1_000_000) {
+    return res.status(400).json({ error: 'Invalid amount' })
+  }
   const exp = loadExpenses()
-  const item = { id: `e${Date.now()}`, ...req.body }
+  const item = {
+    id: `e${Date.now()}`,
+    category: typeof b.category === 'string' ? b.category.slice(0, 100) : 'Other',
+    amount,
+    date: typeof b.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.date) ? b.date : new Date().toISOString().slice(0,10),
+    description: typeof b.description === 'string' ? b.description.slice(0, 500) : '',
+    type: VALID_TYPES.has(b.type) ? b.type : 'other',
+    recurring: !!b.recurring,
+  }
   exp.push(item)
   saveExpenses(exp)
   res.status(201).json(item)
@@ -63,10 +78,23 @@ router.post('/', (req, res) => {
 
 // PUT update expense
 router.put('/:id', (req, res) => {
+  if (!/^e\d+$/.test(req.params.id)) return res.status(400).json({ error: 'Invalid id' })
   let exp = loadExpenses()
   const idx = exp.findIndex(e => e.id === req.params.id)
   if (idx === -1) return res.status(404).json({ error: 'Not found' })
-  exp[idx] = { ...exp[idx], ...req.body }
+  const b = req.body || {}
+  const patch = {}
+  if (b.category !== undefined) patch.category = typeof b.category === 'string' ? b.category.slice(0, 100) : exp[idx].category
+  if (b.amount !== undefined) {
+    const n = parseFloat(b.amount)
+    if (!isFinite(n) || n < 0 || n > 1_000_000) return res.status(400).json({ error: 'Invalid amount' })
+    patch.amount = n
+  }
+  if (b.date !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(b.date)) patch.date = b.date
+  if (b.description !== undefined) patch.description = typeof b.description === 'string' ? b.description.slice(0, 500) : ''
+  if (b.type !== undefined) patch.type = VALID_TYPES.has(b.type) ? b.type : exp[idx].type
+  if (b.recurring !== undefined) patch.recurring = !!b.recurring
+  exp[idx] = { ...exp[idx], ...patch }
   saveExpenses(exp)
   res.json(exp[idx])
 })
@@ -83,8 +111,20 @@ router.get('/budgets', (req, res) => res.json(loadBudgets()))
 
 // PUT /budgets
 router.put('/budgets', (req, res) => {
-  saveBudgets(req.body)
-  res.json(req.body)
+  const b = req.body || {}
+  const VALID_BUDGET_KEYS = ['housing','food','utilities','entertainment','health','transport','insurance','other']
+  const budgets = {}
+  for (const k of VALID_BUDGET_KEYS) {
+    if (k in b) {
+      const n = parseFloat(b[k])
+      if (!isFinite(n) || n < 0) return res.status(400).json({ error: `Invalid budget value for ${k}` })
+      budgets[k] = n
+    }
+  }
+  const existing = loadBudgets()
+  const updated = { ...existing, ...budgets }
+  saveBudgets(updated)
+  res.json(updated)
 })
 
 module.exports = router

@@ -1,14 +1,58 @@
 const express = require('express')
 const path = require('path')
 const cors = require('cors')
+const helmet = require('helmet')
+const { rateLimit } = require('express-rate-limit')
 
 const app = express()
-app.use(cors())
-app.use(express.json())
 
-// serve static frontend and data files
+// ── Security headers ────────────────────────────────────────────────────────
+app.use(helmet({ contentSecurityPolicy: false })) // CSP disabled: Vite handles it
+
+// ── CORS: restrict to local dev origins only ────────────────────────────────
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:4173', // Vite preview
+  'http://127.0.0.1:4173',
+]
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow server-to-server (no origin) and whitelisted origins
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true)
+    cb(new Error('CORS: origin not allowed'))
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}))
+
+// ── Global rate limit: 200 req / 15 min per IP ──────────────────────────────
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 200,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+}))
+
+// ── Tighter limit on stock quotes (hits external Yahoo Finance) ──────────────
+app.use('/api/stocks', rateLimit({
+  windowMs: 60 * 1000,
+  limit: 20,
+  message: { error: 'Stock quote rate limit exceeded.' },
+}))
+
+// ── Tighter limit on file upload ─────────────────────────────────────────────
+app.use('/api/upload', rateLimit({
+  windowMs: 60 * 1000,
+  limit: 5,
+  message: { error: 'Upload rate limit exceeded.' },
+}))
+
+app.use(express.json({ limit: '1mb' }))
+
+// Serve static frontend ONLY — NOT the data/ directory
 app.use(express.static(path.join(__dirname, '..', 'public')))
-app.use('/data', express.static(path.join(__dirname, '..', 'data')))
 
 // agent API
 app.use('/api/agents', require('./api/agentRoutes'))

@@ -67,12 +67,15 @@ router.get('/run/daily', async (req,res)=>{
 // Alerts endpoint
 router.post('/alerts', (req,res)=>{
   const { message, level } = req.body || {}
+  const VALID_LEVELS = new Set(['info','warn','warning','error','critical'])
+  const safeMessage = typeof message === 'string' ? message.slice(0, 500) : ''
+  const safeLevel = typeof level === 'string' && VALID_LEVELS.has(level.toLowerCase()) ? level.toLowerCase() : 'info'
   // For now, log and respond. Hook into real notification service here.
   try{
     const notifier = require('../notifications/notificationService')
-    notifier.sendNotification({ message, level })
+    notifier.sendNotification({ message: safeMessage, level: safeLevel })
   }catch(e){
-    console.log('Alert:', message)
+    console.log('Alert:', safeMessage)
   }
   res.json({ ok: true })
 })
@@ -83,7 +86,7 @@ router.get('/stream', (req, res) => {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     Connection: 'keep-alive',
-    'Access-Control-Allow-Origin': '*'
+    // CORS handled by the global cors() middleware — do not override with wildcard
   })
   res.flushHeaders && res.flushHeaders()
 

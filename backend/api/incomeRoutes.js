@@ -27,7 +27,23 @@ router.get('/profile', (req, res) => {
 // PUT /api/income/profile
 router.put('/profile', (req, res) => {
   const existing = readProfile()
-  const updated = { ...existing, ...req.body, updatedAt: new Date().toISOString() }
+  const b = req.body || {}
+  // Whitelist profile fields — never blindly spread req.body into stored data
+  const ALLOWED_PROFILE = ['name','email','phone','occupation','annualSalary','taxRate','currency','riskProfile','investmentGoal','retirementAge','onboarded']
+  const patch = {}
+  for (const k of ALLOWED_PROFILE) {
+    if (!(k in b)) continue
+    if (['annualSalary','taxRate','retirementAge'].includes(k)) {
+      const n = parseFloat(b[k])
+      if (!isFinite(n) || n < 0) continue
+      patch[k] = n
+    } else if (typeof b[k] === 'string') {
+      patch[k] = b[k].slice(0, 200)
+    } else if (typeof b[k] === 'boolean') {
+      patch[k] = b[k]
+    }
+  }
+  const updated = { ...existing, ...patch, updatedAt: new Date().toISOString() }
   writeProfile(updated)
   res.json(updated)
 })
@@ -87,7 +103,21 @@ router.put('/:id', (req, res) => {
   const income = readIncome()
   const idx = income.findIndex(i => i.id === req.params.id)
   if (idx === -1) return res.status(404).json({ error: 'Not found' })
-  income[idx] = { ...income[idx], ...req.body, id: income[idx].id, updatedAt: new Date().toISOString() }
+  const b = req.body || {}
+  const VALID_TYPES = new Set(['salary','dividend','options','rental','freelance','interest','other'])
+  const VALID_FREQ = new Set(['monthly','annual','quarterly','weekly','biweekly'])
+  const patch = {}
+  if (b.type !== undefined && VALID_TYPES.has(b.type)) patch.type = b.type
+  if (b.label !== undefined) patch.label = String(b.label).slice(0, 200)
+  if (b.amount !== undefined) {
+    const n = parseFloat(b.amount)
+    if (isFinite(n) && n >= 0) patch.amount = n
+  }
+  if (b.frequency !== undefined && VALID_FREQ.has(b.frequency)) patch.frequency = b.frequency
+  if (b.notes !== undefined) patch.notes = String(b.notes).slice(0, 500)
+  if (b.active !== undefined) patch.active = !!b.active
+  if (b.taxable !== undefined) patch.taxable = !!b.taxable
+  income[idx] = { ...income[idx], ...patch, id: income[idx].id, updatedAt: new Date().toISOString() }
   writeIncome(income)
   res.json(income[idx])
 })

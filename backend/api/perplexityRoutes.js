@@ -78,13 +78,14 @@ async function searchAndAnalyze(opts) {
   }, [])
 
   const searchContext = results.map(function(r, i) {
-    const snippets = (r.results || []).map(s => '[' + s.title + ']\n' + s.snippet).join('\n\n')
-    const answer = r.answer ? 'Direct answer: ' + r.answer + '\n\n' : ''
+    const snippets = (r.results || []).map(s => '[' + s.title + ']\n' + String(s.snippet).slice(0, 500)).join('\n\n')
+    const answer = r.answer ? 'Direct answer: ' + String(r.answer).slice(0, 500) + '\n\n' : ''
     return '=== Search: "' + queries[i] + '" ===\n' + answer + snippets
   }).join('\n\n---\n\n')
 
   const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-  const fullPrompt = analysisPrompt + '\n\n---\nWEB SEARCH RESULTS (live data, ' + dateStr + '):\n\n' + searchContext + '\n---\n\nUse the search results above as your primary data source. Include specific numbers, dates, and prices from the results.'
+  // Wrap in XML delimiters to prevent prompt injection from search results
+  const fullPrompt = analysisPrompt + '\n\n<web_search_results fetched="' + dateStr + '">\n' + searchContext + '\n</web_search_results>\n\nUse the search results above as your primary data source. Include specific numbers, dates, and prices from the results.'
 
   const out = await llmChat(systemPrompt, fullPrompt, maxTokens || 2000)
   return { text: out.text, citations: citations.filter((v, i, a) => a.indexOf(v) === i).slice(0, 8), provider: provider, llm: out.llm }
@@ -300,13 +301,14 @@ router.post('/chat', async (req, res) => {
     const searchResult = await searchProvider.search(message + ' 2026 financial', 4).catch(function() { return { results: [], answer: '', provider: 'none' } })
     const citations = searchResult.results.map(r => r.url).filter(Boolean)
     const searchCtx = searchResult.answer
-      ? 'Web answer: ' + searchResult.answer + '\n\n' + searchResult.results.slice(0, 3).map(r => '[' + r.title + ']: ' + r.snippet).join('\n')
-      : searchResult.results.slice(0, 3).map(r => '[' + r.title + ']: ' + r.snippet).join('\n')
+      ? 'Web answer: ' + String(searchResult.answer).slice(0, 500) + '\n\n' + searchResult.results.slice(0, 3).map(r => '[' + r.title + ']: ' + String(r.snippet).slice(0, 300)).join('\n')
+      : searchResult.results.slice(0, 3).map(r => '[' + r.title + ']: ' + String(r.snippet).slice(0, 300)).join('\n')
 
     const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     const systemPrompt = 'You are a knowledgeable financial advisor AI.\nClient data: monthly income $' + Math.round(totalMonthly).toLocaleString() + ', expenses $' + Math.round(totalExpenses).toLocaleString() + ', savings rate ' + savingsRate + '%.\nUser: ' + (profile.name || 'Client') + '\nToday: ' + dateStr + '\nAnswer concisely. Use web search results when available. Note when professional advice is needed.'
 
-    const fullMessage = searchCtx ? message + '\n\n[Web search results for context]:\n' + searchCtx : message
+    // Wrap search results in XML delimiters to prevent prompt injection
+    const fullMessage = searchCtx ? message + '\n\n<web_search_results>\n' + searchCtx + '\n</web_search_results>' : message
 
     const ollamaModel = process.env.OLLAMA_MODEL || 'llama3.2'
     const allMessages = history.slice(-6).concat([{ role: 'user', content: fullMessage }])

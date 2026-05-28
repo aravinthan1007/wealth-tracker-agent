@@ -23,17 +23,18 @@ export default function Overview() {
   async function load() {
     setSpinning(true)
     try {
+      const safe = p => p.catch(() => null)
       const [nwRes, ccRes, expRes, stRes] = await Promise.all([
-        fetch('/api/agents/networth').then(r => r.json()),
-        fetch('/api/creditcards').then(r => r.json()),
-        fetch('/api/expenses/summary').then(r => r.json()),
-        fetch('/api/stocks/quote?symbols=AAPL,MSFT,TSLA,GOOGL').then(r => r.json()),
+        safe(fetch('/api/agents/networth').then(r => r.json())),
+        safe(fetch('/api/creditcards').then(r => r.json())),
+        safe(fetch('/api/expenses/summary').then(r => r.json())),
+        safe(fetch('/api/stocks/quote?symbols=AAPL,MSFT,TSLA,GOOGL').then(r => r.json())),
       ])
-      setNw(nwRes)
-      setCards(ccRes)
-      setExpenses(expRes)
-      setStocks(stRes)
-      setLive(true)
+      if (nwRes) setNw(nwRes)
+      if (ccRes) setCards(Array.isArray(ccRes) ? ccRes : [])
+      if (expRes) setExpenses(expRes)
+      if (stRes) setStocks(Array.isArray(stRes) ? stRes : [])
+      setLive(!!(nwRes || ccRes))
       setLastUpdate(new Date().toISOString())
     } catch { setLive(false) }
     setSpinning(false)
