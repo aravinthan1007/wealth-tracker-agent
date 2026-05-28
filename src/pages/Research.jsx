@@ -203,8 +203,8 @@ function SkillCard({ skill, portfolio, apiKey }) {
           </div>
 
           {!apiKey && (
-            <div style={{ fontSize: 12, color: '#f05060', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <AlertTriangle size={12} /> Set PERPLEXITY_API_KEY in your .env to use these skills
+            <div style={{ fontSize: 12, color: C.amber, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <AlertTriangle size={12} /> No search provider or LLM configured — see setup instructions above
             </div>
           )}
 
@@ -240,7 +240,7 @@ function SkillCard({ skill, portfolio, apiKey }) {
               </div>
               <div style={{ marginTop: 8, fontSize: 11, color: C.subtle, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <CheckCircle size={10} color={C.green} />
-                Powered by Perplexity {MODEL} · Internet-grounded answer · Not investment advice
+                Search: {result.provider} · LLM: {result.llm} · Not investment advice
               </div>
             </div>
           )}
@@ -290,7 +290,7 @@ function ChatPanel({ apiKey }) {
         <span style={{ fontWeight: 700, fontSize: 14 }}>AI Wealth Advisor Chat</span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: apiKey ? C.green : '#f05060' }} />
-          <span style={{ fontSize: 11, color: C.subtle }}>{apiKey ? 'Perplexity sonar-pro' : 'API key missing'}</span>
+          <span style={{ fontSize: 11, color: C.subtle }}>{apiKey ? (status?.activeProvider || 'Ollama llama3.2') : 'Not configured'}</span>
         </div>
       </div>
 
@@ -331,11 +331,11 @@ function ChatPanel({ apiKey }) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
-          placeholder={apiKey ? 'Ask about stocks, taxes, portfolio strategy…' : 'Set PERPLEXITY_API_KEY to enable chat'}
+          placeholder={apiKey ? 'Ask about stocks, taxes, portfolio strategy…' : 'Configure a search provider or start Ollama to enable chat'}
           disabled={!apiKey || loading}
           style={{ flex: 1, padding: '9px 14px', background: '#0a1424', border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: 13, outline: 'none' }}
         />
-        <button onClick={send} disabled={!input.trim() || loading || !apiKey}
+        <button onClick={send} disabled={!input.trim() || loading}
           style={{ width: 38, height: 38, borderRadius: 10, background: apiKey && input.trim() ? C.green : C.card2, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <Send size={15} color={apiKey && input.trim() ? '#03180d' : C.subtle} />
         </button>
@@ -369,12 +369,14 @@ export default function Research() {
     <div>
       <PageHeader
         title="AI Research Agent"
-        subtitle={<>6 wealth management skills · Powered by Perplexity <span style={{ color: C.blue }}>sonar-pro</span> with live internet access · Adapted from <a href="https://github.com/anthropics/financial-services" target="_blank" rel="noopener noreferrer" style={{ color: C.blue, textDecoration: 'none' }}>Anthropics financial-services</a></>}
+        subtitle={<>6 wealth management skills · Search: Tavily / Exa / Serper / SearXNG · LLM: Ollama llama3.2 (local, free) · Adapted from <a href="https://github.com/anthropics/financial-services" target="_blank" rel="noopener noreferrer" style={{ color: C.blue, textDecoration: 'none' }}>Anthropic financial-services</a></>}
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: apiKey ? 'rgba(16,216,124,0.08)' : 'rgba(240,80,96,0.08)', border: `1px solid ${apiKey ? 'rgba(16,216,124,0.2)' : 'rgba(240,80,96,0.2)'}`, borderRadius: 8 }}>
-              <Globe size={12} color={apiKey ? C.green : '#f05060'} />
-              <span style={{ fontSize: 12, color: apiKey ? C.green : '#f05060', fontWeight: 600 }}>{apiKey ? 'Internet access active' : 'PERPLEXITY_API_KEY missing'}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: apiKey ? 'rgba(16,216,124,0.08)' : 'rgba(245,166,35,0.08)', border: `1px solid ${apiKey ? 'rgba(16,216,124,0.2)' : 'rgba(245,166,35,0.2)'}`, borderRadius: 8 }}>
+              <Globe size={12} color={apiKey ? C.green : C.amber} />
+              <span style={{ fontSize: 12, color: apiKey ? C.green : C.amber, fontWeight: 600 }}>
+                {apiKey ? `Search: ${status?.activeProvider || 'active'} · Ollama: ready` : 'Setup required'}
+              </span>
             </div>
           </div>
         }
@@ -382,16 +384,33 @@ export default function Research() {
 
       <div style={{ padding: '20px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-        {/* API key instructions if not set */}
+        {/* Setup instructions when not configured */}
         {status && !apiKey && (
-          <div style={{ padding: '16px 20px', background: 'rgba(240,80,96,0.06)', border: `1px solid rgba(240,80,96,0.2)`, borderRadius: 12 }}>
-            <div style={{ fontWeight: 600, marginBottom: 6, color: '#f05060' }}>Setup Required</div>
-            <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7 }}>
-              Get a free API key at <a href="https://www.perplexity.ai/settings/api" target="_blank" rel="noopener noreferrer" style={{ color: C.blue }}>perplexity.ai/settings/api</a>, then add to your project:
+          <div style={{ padding: '16px 20px', background: 'rgba(245,166,35,0.06)', border: `1px solid rgba(245,166,35,0.2)`, borderRadius: 12 }}>
+            <div style={{ fontWeight: 600, marginBottom: 8, color: C.amber }}>⚡ Setup Required — Choose a free option:</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
+              <div style={{ padding: '12px 14px', background: '#080e1d', borderRadius: 8, border: `1px solid ${C.border}` }}>
+                <div style={{ fontWeight: 600, marginBottom: 6, color: C.text }}>Option A — Ollama (100% local, free)</div>
+                <div style={{ ...mono, fontSize: 11, color: C.green, lineHeight: 2 }}>
+                  1. Install: <a href="https://ollama.com" target="_blank" rel="noopener noreferrer" style={{ color: C.blue }}>ollama.com</a><br />
+                  2. ollama pull llama3.2<br />
+                  3. Restart backend
+                </div>
+              </div>
+              <div style={{ padding: '12px 14px', background: '#080e1d', borderRadius: 8, border: `1px solid ${C.border}` }}>
+                <div style={{ fontWeight: 600, marginBottom: 6, color: C.text }}>Option B — Free search API (+ Ollama)</div>
+                <div style={{ ...mono, fontSize: 11, color: C.green, lineHeight: 2 }}>
+                  Tavily: <a href="https://tavily.com" target="_blank" rel="noopener noreferrer" style={{ color: C.blue }}>tavily.com</a> (1k/mo free)<br />
+                  Exa: <a href="https://exa.ai" target="_blank" rel="noopener noreferrer" style={{ color: C.blue }}>exa.ai</a> (trial credits)<br />
+                  Serper: <a href="https://serper.dev" target="_blank" rel="noopener noreferrer" style={{ color: C.blue }}>serper.dev</a> (2.5k/mo free)
+                </div>
+              </div>
             </div>
             <div style={{ ...mono, fontSize: 12, background: '#080e1d', padding: '10px 14px', borderRadius: 8, marginTop: 10, color: C.green }}>
-              # Create .env file in project root<br />
-              PERPLEXITY_API_KEY=pplx-xxxxxxxxxxxxxxxxxxxxxxxx
+              # .env — add one of these:<br />
+              TAVILY_API_KEY=tvly-...<br />
+              EXA_API_KEY=...<br />
+              SERPER_API_KEY=...
             </div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Then restart: <code style={{ ...mono }}>node backend/server.js</code></div>
           </div>
@@ -429,7 +448,7 @@ export default function Research() {
               <div style={{ marginTop: 8, padding: '12px', background: 'rgba(16,216,124,0.04)', border: `1px solid rgba(16,216,124,0.1)`, borderRadius: 8 }}>
                 <div style={{ fontSize: 11, color: C.green, fontWeight: 600, marginBottom: 4 }}>💡 Powered by</div>
                 <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.6 }}>
-                  Perplexity <strong style={{ color: C.text }}>sonar-pro</strong> model with real-time web search. Skills adapted from the <strong style={{ color: C.text }}>Anthropic financial-services</strong> open-source repo (wealth-management vertical).
+                  Search: <strong style={{ color: C.text }}>{status?.activeProvider || 'auto-detect'}</strong> · LLM: <strong style={{ color: C.text }}>Ollama llama3.2</strong> (local, free). Skills adapted from the <strong style={{ color: C.text }}>Anthropic financial-services</strong> open-source repo (wealth-management vertical).
                 </div>
               </div>
             </div>
