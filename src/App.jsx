@@ -15,7 +15,7 @@ class SectionErrorBoundary extends Component {
 }
 import {
   Wallet, Sparkles, LayoutDashboard, TrendingUp, DollarSign,
-  Receipt, CreditCard, Calendar, Settings, ChevronUp, Menu, X,
+  Receipt, CreditCard, Calendar, Settings, ChevronUp, Menu, X, Target,
 } from 'lucide-react'
 import Overview   from './pages/Overview'
 import Portfolio  from './pages/Portfolio'
@@ -23,6 +23,7 @@ import Income     from './pages/Income'
 import Expenses   from './pages/Expenses'
 import CreditCards from './pages/CreditCards'
 import CalendarPage from './pages/CalendarPage'
+import Goals from './pages/Goals'
 import CopilotDrawer    from './components/CopilotDrawer'
 import ObservabilityStrip from './components/ObservabilityStrip'
 import { C, fmtK, mono } from './components/ui'
@@ -35,6 +36,7 @@ const NAV = [
   { id: 'expenses',  label: 'Expenses',    icon: Receipt },
   { id: 'cards',     label: 'Credit Cards',icon: CreditCard },
   { id: 'calendar',  label: 'Calendar',    icon: Calendar },
+  { id: 'goals',     label: 'Goals',        icon: Target },
 ]
 
 const SECTIONS = [
@@ -44,6 +46,7 @@ const SECTIONS = [
   { id: 'expenses',  Component: Expenses },
   { id: 'cards',     Component: CreditCards },
   { id: 'calendar',  Component: CalendarPage },
+  { id: 'goals',     Component: Goals },
 ]
 
 function useNetWorth() {
@@ -170,6 +173,13 @@ export default function App() {
     setCopilotQuestion(question ?? null)
     setCopilotOpen(true)
   }, [])
+
+  // Allow child components (e.g. StockFunnelAnalysis) to open the copilot via custom event
+  useEffect(() => {
+    const handler = e => openCopilot(e.detail?.question ?? null)
+    window.addEventListener('wt:open-copilot', handler)
+    return () => window.removeEventListener('wt:open-copilot', handler)
+  }, [openCopilot])
 
   const nwColor = nw ? (nw.netWorth >= 0 ? C.green : C.red) : C.muted
 

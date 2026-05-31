@@ -8,6 +8,7 @@ import {
   C, mono, fmt, PageHeader, Card, Btn, Badge, Input, Modal, Spinner,
   EmptyState, SectionHeader, StatCard,
 } from '../components/ui'
+import CashFlowSankey from '../components/CashFlowSankey'
 
 const INCOME_TYPES = [
   { value: 'salary',    label: 'Salary',          icon: Briefcase,   color: C.green },
@@ -48,6 +49,7 @@ export default function Income() {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState('sources') // 'sources' | 'flow'
 
   async function load() {
     setLoading(true)
@@ -115,13 +117,30 @@ export default function Income() {
         title="Income Sources"
         subtitle="Track all income streams — salary, dividends, options, rental, and more"
         actions={<>
-          <Btn onClick={load} variant="secondary" size="sm"><RefreshCw size={12} />Refresh</Btn>
+          {activeTab === 'sources' && <Btn onClick={load} variant="secondary" size="sm"><RefreshCw size={12} />Refresh</Btn>}
           <Btn onClick={openAdd} size="sm"><Plus size={12} />Add Income</Btn>
         </>}
       />
 
-      <div style={{ padding: '20px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {/* Tab switcher */}
+      <div style={{ padding: '0 28px', display: 'flex', gap: 4, borderBottom: `1px solid ${C.border}`, background: C.surface || C.bg }}>        {[{ id: 'sources', label: 'Income Sources' }, { id: 'flow', label: '💸 Money Flow' }].map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
+            padding: '11px 18px', fontSize: 13, fontWeight: activeTab === t.id ? 600 : 500,
+            color: activeTab === t.id ? C.green : C.muted,
+            borderBottom: activeTab === t.id ? `2px solid ${C.green}` : '2px solid transparent',
+            background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+          }}>{t.label}</button>
+        ))}
+      </div>
 
+      {activeTab === 'flow' && (
+        <div style={{ padding: '20px 28px' }}>
+          <CashFlowSankey />
+        </div>
+      )}
+
+      {activeTab === 'sources' && (
+      <div style={{ padding: '20px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
         {/* KPI row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
           <StatCard
@@ -289,7 +308,11 @@ export default function Income() {
             </div>
           </Card>
         )}
+
+        {/* Money Flow Sankey removed from here — now accessible via Money Flow tab */}
+
       </div>
+      )} {/* end activeTab === 'sources' */}
 
       {/* Add / Edit Modal */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Income Source' : 'Add Income Source'}>

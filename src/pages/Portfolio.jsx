@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { TrendingUp, TrendingDown, Plus, Trash2, RefreshCw, Newspaper, BarChart2, Globe, ExternalLink, ChevronRight } from 'lucide-react'
+import { TrendingUp, TrendingDown, Plus, Trash2, RefreshCw, Newspaper, BarChart2, Globe, ExternalLink, ChevronRight, BarChart } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { C, mono, fmt, PageHeader, Card, Btn, Badge, Input, Modal, Spinner, EmptyState, SectionHeader } from '../components/ui'
+import StockFunnelAnalysis from './StockFunnelAnalysis'
 
 const SYMBOLS = ['AAPL', 'MSFT', 'TSLA', 'GOOGL', 'AMZN', 'META', 'NVDA', 'JPM']
 const DEFAULT_SYM = 'AAPL'
@@ -15,6 +16,7 @@ export default function Portfolio() {
   const [marketNews, setMarketNews] = useState([])    // general market headlines
   const [history, setHistory] = useState({})
   const [selectedSym, setSelectedSym] = useState(DEFAULT_SYM)
+  const [analyzeStock, setAnalyzeStock] = useState(null)   // stock object to analyze, or null
   const [addOpen, setAddOpen] = useState(false)
   const [newStock, setNewStock] = useState({ symbol: '', shares: '', avgCost: '' })
   const [loading, setLoading] = useState(false)
@@ -123,6 +125,20 @@ export default function Portfolio() {
     return `${Math.floor(h/24)}d ago`
   }
 
+  /* ── Full-screen funnel overlay ── */
+  if (analyzeStock) {
+    const q = quoteMap[analyzeStock.symbol] || {}
+    const stockForFunnel = { ...analyzeStock, ...q, shares: analyzeStock.shares, avgCost: analyzeStock.avgCost }
+    return (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 100, overflowY: 'auto', background: '#060b17' }}>
+        <StockFunnelAnalysis
+          stock={stockForFunnel}
+          onBack={() => setAnalyzeStock(null)}
+        />
+      </div>
+    )
+  }
+
   return (
     <div>
       <PageHeader
@@ -130,6 +146,7 @@ export default function Portfolio() {
         subtitle="Live quotes · Google Finance news · Personal holdings"
         actions={<>
           <Btn onClick={() => { loadQuotes(); loadMarketNews(); loadSymNews(selectedSym || DEFAULT_SYM) }} variant="secondary" size="sm"><RefreshCw size={12} />Refresh</Btn>
+          <Btn onClick={() => { const q = quotes.find(q => q.symbol === selectedSym) || quotes[0]; if(q) setAnalyzeStock({ symbol: q.symbol, name: q.name, shares: 0, avgCost: q.price || 0 }) }} variant="secondary" size="sm" style={{ borderColor: C.blue, color: C.blue }}><BarChart size={12} />Deep Analyze</Btn>
           <Btn onClick={() => setAddOpen(true)} size="sm"><Plus size={12} />Add Stock</Btn>
         </>}
       />
@@ -175,7 +192,10 @@ export default function Portfolio() {
                       <span style={{ fontSize:11, opacity:0.8 }}>({p.gainLossPct.toFixed(2)}%)</span>
                     </td>
                     <td style={{ padding:'11px 16px' }}>
-                      <button onClick={e=>{e.stopPropagation();removeStock(p.symbol)}} style={{ background:'none', border:'none', color:C.subtle, cursor:'pointer', padding:4, borderRadius:4 }}><Trash2 size={13} /></button>
+                      <div style={{ display:'flex', gap:4 }}>
+                        <button onClick={e=>{e.stopPropagation();setAnalyzeStock(p)}} title="Deep analysis" style={{ background:'none', border:'none', color:C.blue, cursor:'pointer', padding:4, borderRadius:4 }}><BarChart size={13} /></button>
+                        <button onClick={e=>{e.stopPropagation();removeStock(p.symbol)}} style={{ background:'none', border:'none', color:C.subtle, cursor:'pointer', padding:4, borderRadius:4 }}><Trash2 size={13} /></button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -191,18 +211,22 @@ export default function Portfolio() {
             <div style={{ padding: '14px 20px', borderBottom:`1px solid ${C.border}`, display:'flex', alignItems:'center', gap:8 }}>
               <BarChart2 size={15} color={C.blue} />
               <span style={{ fontWeight:600, fontSize:14 }}>Live Market Quotes</span>
-              <span style={{ marginLeft:'auto', fontSize:11, color:C.subtle }}>Click to explore</span>
+              <span style={{ marginLeft:'auto', fontSize:11, color:C.subtle }}>Click card · <span style={{ color:C.blue }}>⬡ icon = deep analysis</span></span>
             </div>
             {loading ? <Spinner /> : (
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px,1fr))' }}>
                 {quotes.map(q => (
                   <div key={q.symbol} onClick={() => selectSym(q.symbol)} style={{
                     padding:'16px 16px', borderRight:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}`,
-                    cursor:'pointer',
+                    cursor:'pointer', position:'relative',
                     background: selectedSym===q.symbol ? 'linear-gradient(135deg,rgba(16,216,124,0.08),rgba(16,216,124,0.02))' : 'transparent',
                     borderTop: selectedSym===q.symbol ? `2px solid ${C.green}` : '2px solid transparent',
                     transition:'all 0.15s',
                   }}>
+                    <button onClick={e=>{e.stopPropagation();setAnalyzeStock({ symbol:q.symbol, name:q.name, shares:0, avgCost:q.price||0 })}} title="Deep analysis"
+                      style={{ position:'absolute', top:8, right:8, background:'rgba(61,142,240,0.15)', border:`1px solid ${C.blue}40`, color:C.blue, cursor:'pointer', padding:'3px 5px', borderRadius:5, opacity:0.9, display:'flex', alignItems:'center', gap:3, fontSize:10, fontWeight:600 }}>
+                      <BarChart size={10} /> Analyze
+                    </button>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6 }}>
                       <span style={{ fontWeight:800, fontSize:13, ...mono, color: selectedSym===q.symbol ? C.green : C.text }}>{q.symbol}</span>
                       <Badge color={q.changePercent >= 0 ? 'green' : 'red'} style={{ fontSize:10 }}>

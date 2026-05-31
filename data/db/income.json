@@ -1,1 +1,28 @@
-[]
+[
+  {
+    "id": "1780254368056",
+    "type": "salary",
+    "label": "Base Salary",
+    "amount": 8500,
+    "frequency": "monthly",
+    "currency": "USD",
+    "taxable": true,
+    "notes": "",
+    "active": true,
+    "startDate": "2026-05-31",
+    "createdAt": "2026-05-31T19:06:08.056Z"
+  },
+  {
+    "id": "1780254372710",
+    "type": "salary",
+    "label": "Base Salary",
+    "amount": 8500,
+    "frequency": "monthly",
+    "currency": "USD",
+    "taxable": true,
+    "notes": "",
+    "active": true,
+    "startDate": "2026-05-31",
+    "createdAt": "2026-05-31T19:06:12.710Z"
+  }
+]
