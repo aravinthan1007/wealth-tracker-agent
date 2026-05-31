@@ -255,6 +255,10 @@ export function Modal({ open, onClose, title, children }) {
 
 export function StatCard({ label, value, sub, color, icon: Icon, trend }) {
   const col = color || C.green
+  // icon can be a component function/forwardRef OR a pre-rendered JSX element
+  const isIconElement = Icon != null && typeof Icon === 'object' && 'props' in Icon
+  // trend can be a number (shown as %) or a string (shown as label)
+  const trendIsNum = typeof trend === 'number'
   return (
     <div
       className="card-hover"
@@ -284,13 +288,15 @@ export function StatCard({ label, value, sub, color, icon: Icon, trend }) {
               border: `1px solid ${col}22`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Icon size={14} color={col} />
+              {isIconElement ? Icon : <Icon size={14} color={col} />}
             </div>
           )}
           <span style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
         </div>
         {trend !== undefined && (
-          <Badge color={trend >= 0 ? 'green' : 'red'}>{trend >= 0 ? '+' : ''}{trend.toFixed(1)}%</Badge>
+          trendIsNum
+            ? <Badge color={trend >= 0 ? 'green' : 'red'}>{trend >= 0 ? '+' : ''}{trend.toFixed(1)}%</Badge>
+            : <span style={{ fontSize: 11, color: col, fontWeight: 500 }}>{trend}</span>
         )}
       </div>
       <div style={{ fontSize: 26, fontWeight: 700, color: col, ...mono, letterSpacing: '-0.03em', marginBottom: 5, animation: 'countUp 0.4s ease' }}>

@@ -100,14 +100,14 @@ export default function Income() {
 
   const typeInfo = v => INCOME_TYPES.find(t => t.value === v) || INCOME_TYPES[INCOME_TYPES.length - 1]
 
-  const pieData = Object.entries(data.byType).map(([type, val], i) => ({
+  const pieData = Object.entries(data.byType || {}).map(([type, val], i) => ({
     name: typeInfo(type).label,
     value: Math.round(val),
     color: PIE_COLORS[i % PIE_COLORS.length],
   })).filter(d => d.value > 0)
 
-  const active = data.income.filter(i => i.active)
-  const inactive = data.income.filter(i => !i.active)
+  const active = (data.income || []).filter(i => i.active)
+  const inactive = (data.income || []).filter(i => !i.active)
 
   return (
     <div>

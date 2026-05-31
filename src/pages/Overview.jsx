@@ -30,11 +30,17 @@ export default function Overview() {
         safe(fetch('/api/expenses/summary').then(r => r.json())),
         safe(fetch('/api/stocks/quote?symbols=AAPL,MSFT,TSLA,GOOGL').then(r => r.json())),
       ])
-      if (nwRes) setNw(nwRes)
-      if (ccRes) setCards(Array.isArray(ccRes) ? ccRes : [])
-      if (expRes) setExpenses(expRes)
-      if (stRes) setStocks(Array.isArray(stRes) ? stRes : [])
-      setLive(!!(nwRes || ccRes))
+      if (nwRes && typeof nwRes.netWorth === 'number') setNw(nwRes)
+      if (ccRes && !ccRes.error) setCards(Array.isArray(ccRes) ? ccRes : ccRes.cards ?? [])
+      if (expRes && !expRes.error) setExpenses(expRes)
+      if (stRes && !stRes.error) {
+        // /api/stocks/quote returns { SYMBOL: {...}, ... } keyed object
+        const arr = Array.isArray(stRes)
+          ? stRes
+          : Object.entries(stRes).map(([symbol, data]) => ({ symbol, ...data }))
+        setStocks(arr)
+      }
+      setLive(!!(nwRes?.netWorth != null || ccRes?.length))
       setLastUpdate(new Date().toISOString())
     } catch { setLive(false) }
     setSpinning(false)
@@ -42,12 +48,11 @@ export default function Overview() {
 
   useEffect(() => {
     load()
-    setLive(true)
     const poll = setInterval(() => {
       fetch('/api/agents/networth').then(r => r.json()).then(d => {
-        setNw(d); setLive(true); setLastUpdate(new Date().toISOString())
+        if (d && typeof d.netWorth === 'number') { setNw(d); setLive(true); setLastUpdate(new Date().toISOString()) }
       }).catch(() => setLive(false))
-    }, 10000)
+    }, 60000)
     return () => clearInterval(poll)
   }, [])
 

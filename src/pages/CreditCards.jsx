@@ -15,7 +15,8 @@ export default function CreditCards() {
     setLoading(true)
     try {
       const res = await fetch('/api/creditcards')
-      setCards(await res.json())
+      const d = await res.json()
+      setCards(Array.isArray(d) ? d : d.cards ?? [])
     } catch {}
     setLoading(false)
   }

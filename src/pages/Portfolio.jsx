@@ -28,7 +28,7 @@ export default function Portfolio() {
     try {
       const res = await fetch(`/api/stocks/quote?symbols=${syms.join(',')}`)
       const data = await res.json()
-      setQuotes(data)
+      setQuotes(Array.isArray(data) ? data : data.quotes ?? [])
     } catch {}
     setLoading(false)
   }

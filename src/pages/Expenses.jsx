@@ -59,10 +59,10 @@ export default function Expenses() {
     setEditExp(exp); setAddOpen(true)
   }
 
-  const pieData = data ? Object.entries(data.byCategory).map(([k,v]) => ({ name:k, value:v, color:CATEGORY_COLORS[k]||C.muted })) : []
+  const pieData = data ? Object.entries(data.byCategory || {}).map(([k,v]) => ({ name:k, value:v, color:CATEGORY_COLORS[k]||C.muted })) : []
   const barData = data ? CATEGORIES.map(cat => ({
     cat: cat.charAt(0).toUpperCase() + cat.slice(1),
-    spent: data.byCategory[cat] || 0,
+    spent: (data.byCategory || {})[cat] || 0,
     budget: data.budgets?.[cat] || 0
   })).filter(d => d.spent > 0 || d.budget > 0) : []
 
@@ -88,7 +88,7 @@ export default function Expenses() {
             <StatCard label="Total Spent" value={fmt.format(data.total)} sub={`${data.expenses?.length || 0} transactions`} color={C.red} icon={TrendingDown} />
             <StatCard label="Total Budget" value={fmt.format(Object.values(data.budgets||{}).reduce((s,v)=>s+v,0))} sub="Monthly target" color={C.blue} />
             <StatCard label="Remaining" value={fmt.format(Math.max(0, Object.values(data.budgets||{}).reduce((s,v)=>s+v,0) - data.total))} sub="Budget left" color={C.green} />
-            <StatCard label="Over Budget" value={Object.entries(data.byCategory).filter(([k,v])=>(data.budgets?.[k]||0)>0 && v>(data.budgets?.[k]||0)).length + ' categories'} sub="Need attention" color={C.amber} />
+            <StatCard label="Over Budget" value={Object.entries(data.byCategory||{}).filter(([k,v])=>(data.budgets?.[k]||0)>0 && v>(data.budgets?.[k]||0)).length + ' categories'} sub="Need attention" color={C.amber} />
           </div>
 
           {/* Charts row */}
@@ -128,7 +128,7 @@ export default function Expenses() {
             <div style={{ padding:'14px 18px', borderBottom:`1px solid ${C.border}`, fontWeight:600, fontSize:14 }}>Category Breakdown</div>
             <div style={{ padding:'8px 0' }}>
               {CATEGORIES.map(cat => {
-                const spent = data.byCategory[cat] || 0
+                const spent = (data.byCategory || {})[cat] || 0
                 const budget = data.budgets?.[cat] || 0
                 if (spent === 0 && budget === 0) return null
                 const pct = budget ? Math.min(100, spent/budget*100) : 100

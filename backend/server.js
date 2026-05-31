@@ -27,10 +27,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }))
 
-// ── Global rate limit: 200 req / 15 min per IP ──────────────────────────────
+// ── Global rate limit: 1000 req / 15 min per IP ──────────────────────────────
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 200,
+  limit: 1000,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
@@ -39,7 +39,7 @@ app.use(rateLimit({
 // ── Tighter limit on stock quotes (hits external Yahoo Finance) ──────────────
 app.use('/api/stocks', rateLimit({
   windowMs: 60 * 1000,
-  limit: 20,
+  limit: 60,
   message: { error: 'Stock quote rate limit exceeded.' },
 }))
 
