@@ -15,7 +15,7 @@ class SectionErrorBoundary extends Component {
 }
 import {
   Wallet, Sparkles, LayoutDashboard, TrendingUp, DollarSign,
-  Receipt, CreditCard, Calendar, Settings, ChevronUp, Menu, X, Target,
+  Receipt, CreditCard, Calendar, Settings, ChevronUp, Menu, X, Target, FlaskConical,
 } from 'lucide-react'
 import Overview   from './pages/Overview'
 import Portfolio  from './pages/Portfolio'
@@ -24,6 +24,7 @@ import Expenses   from './pages/Expenses'
 import CreditCards from './pages/CreditCards'
 import CalendarPage from './pages/CalendarPage'
 import Goals from './pages/Goals'
+import Evals from './pages/Evals'
 import CopilotDrawer    from './components/CopilotDrawer'
 import ObservabilityStrip from './components/ObservabilityStrip'
 import { C, fmtK, mono } from './components/ui'
@@ -37,6 +38,7 @@ const NAV = [
   { id: 'cards',     label: 'Credit Cards',icon: CreditCard },
   { id: 'calendar',  label: 'Calendar',    icon: Calendar },
   { id: 'goals',     label: 'Goals',        icon: Target },
+  { id: 'evals',     label: 'Evals',        icon: FlaskConical },
 ]
 
 const SECTIONS = [
@@ -47,6 +49,7 @@ const SECTIONS = [
   { id: 'cards',     Component: CreditCards },
   { id: 'calendar',  Component: CalendarPage },
   { id: 'goals',     Component: Goals },
+  { id: 'evals',     Component: Evals },
 ]
 
 function useNetWorth() {

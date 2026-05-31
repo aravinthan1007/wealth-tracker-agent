@@ -68,6 +68,7 @@ app.use('/api/perplexity', require('./api/perplexityRoutes'))
 app.use('/api/react-agent', require('./api/reactAgentRoutes'))
 app.use('/api/onboarding', require('./api/onboardingRoutes'))
 app.use('/api/goals', require('./api/goalsRoutes'))
+app.use('/api/evals', require('./api/evalsRoutes'))
 
 // ── MongoDB: connect on startup (non-blocking, graceful fallback) ─────────────
 require('./db/mongo').connect()
